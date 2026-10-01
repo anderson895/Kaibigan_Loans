@@ -1,5 +1,16 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
 
+/**
+ * Server-only. Shared by the Cloudflare Pages Function (functions/api/upload-signature.ts)
+ * and the local dev route (src/app/api/upload-signature/route.dev.ts).
+ */
+export interface UploadSignatureEnv {
+  FIREBASE_PROJECT_ID?: string;
+  CLOUDINARY_CLOUD_NAME?: string;
+  CLOUDINARY_API_KEY?: string;
+  CLOUDINARY_API_SECRET?: string;
+}
+
 const GOOGLE_JWKS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com"),
 );
@@ -10,15 +21,15 @@ async function sha1Hex(input: string): Promise<string> {
 }
 
 /**
- * Returns a short-lived Cloudinary upload signature to signed-in users only.
- * The Firebase ID token is verified with Google's public keys (works on Cloudflare Workers,
- * unlike firebase-admin), and the Cloudinary API secret never reaches the browser.
+ * Returns a short-lived Cloudinary upload signature to signed-in, email-verified users only.
+ * The Firebase ID token is verified with Google's public keys, and the Cloudinary API secret
+ * never reaches the browser.
  */
-export async function POST(request: Request) {
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+export async function handleUploadSignature(request: Request, env: UploadSignatureEnv): Promise<Response> {
+  const projectId = env.FIREBASE_PROJECT_ID;
+  const cloudName = env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = env.CLOUDINARY_API_KEY;
+  const apiSecret = env.CLOUDINARY_API_SECRET;
   if (!projectId || !cloudName || !apiKey || !apiSecret) {
     return Response.json({ error: "Server is not configured" }, { status: 500 });
   }

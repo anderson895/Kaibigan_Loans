@@ -1,8 +1,13 @@
 {
+  // Cloudflare Pages project: https://kaibigan-loans.pages.dev
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "kaibigan-loans",
-  "main": ".open-next/worker.js",
+  "pages_build_output_dir": "./out",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" }
+  // Public values used by functions/api/upload-signature.ts. The Cloudinary API key and secret are
+  // Pages secrets (npx wrangler pages secret put ... --project-name kaibigan-loans), never stored here.
+  "vars": {
+    "FIREBASE_PROJECT_ID": "basiclendingapp",
+    "CLOUDINARY_CLOUD_NAME": "wyshpr7q"
+  }
 }

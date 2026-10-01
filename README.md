@@ -68,7 +68,7 @@ Kapalit ito ng mano-manong paglilista sa Word (Name, Credit, Interest, Balance, 
 | Database / Auth | **Firebase** Firestore at Firebase Auth (Google Sign-in) |
 | File storage | **Cloudinary** (signed upload ng resibo) |
 | OCR | **tesseract.js** (tumatakbo sa browser, libre) |
-| Deployment | **Cloudflare Workers** gamit ang `@opennextjs/cloudflare` |
+| Deployment | **Cloudflare Pages** (static export + Pages Function) |
 | Tests | Vitest, `@firebase/rules-unit-testing` at Firestore Emulator |
 | Paradigm | **OOP**: domain classes, repositories, services, strategy pattern |
 
@@ -130,7 +130,7 @@ CLOUDINARY_API_SECRET=...            # SERVER ONLY. Huwag lagyan ng NEXT_PUBLIC_
 
 ### 4. Firebase Console
 1. **Authentication → Sign-in method →** i-enable ang **Google** at **Email/Password**.
-2. **Authentication → Settings → Authorized domains →** idagdag ang production domain mo (hal. `kaibigan-loans.<account>.workers.dev`).
+2. **Authentication → Settings → Authorized domains →** idagdag ang production domain mo (`kaibigan-loans.pages.dev`).
 3. **Firestore Database →** Create database (production mode).
 4. I-deploy ang security rules at indexes:
    ```bash
@@ -164,31 +164,38 @@ CLOUDINARY_API_SECRET=...            # SERVER ONLY. Huwag lagyan ng NEXT_PUBLIC_
 | `npm run lint` | TypeScript type check |
 | `npm test` | Unit tests (domain logic at OCR parser) |
 | `npm run test:rules` | Firestore security rules tests (sinisimulan ang emulator) |
-| `npm run preview` | Build at patakbuhin sa Cloudflare runtime (workerd) nang local |
-| `npm run deploy` | Build at deploy sa Cloudflare |
+| `npm run preview` | Build at patakbuhin ang Pages site + Function nang local |
+| `npm run deploy` | Manual na build at deploy sa Cloudflare Pages |
 | `npm run deploy:rules` | I-deploy ang `firestore.rules` at indexes |
 
 ---
 
-## Deployment sa Cloudflare
+## Deployment sa Cloudflare Pages
 
+Live: **https://kaibigan-loans.pages.dev**
+
+- Ang site ay **static export** (`next build` → `out/`), dahil tumatakbo sa browser ang lahat ng page.
+- Ang tanging server code, ang Cloudinary upload signature, ay **Pages Function** sa `functions/api/upload-signature.ts`. Ang logic nito ay nasa `src/server/uploadSignature.ts`, at ginagamit din ng `src/app/api/upload-signature/route.dev.ts` para gumana sa `npm run dev`.
+- **Auto-deploy:** naka-connect ang Pages project sa GitHub, kaya bawat `git push` sa `main` ay nagbi-build at nagde-deploy.
+
+**Pages project settings (isang beses lang):**
+| Setting | Value |
+|---|---|
+| Framework preset | None |
+| Build command | `npm run build` |
+| Build output directory | `out` |
+| Production branch | `main` |
+
+**Secrets (isang beses lang):**
 ```bash
-npx wrangler login
-
-# Server secrets (hindi naka-bundle sa code)
-npx wrangler secret put CLOUDINARY_API_SECRET
-npx wrangler secret put CLOUDINARY_API_KEY
-
-npm run deploy
+npx wrangler pages secret put CLOUDINARY_API_KEY --project-name kaibigan-loans
+npx wrangler pages secret put CLOUDINARY_API_SECRET --project-name kaibigan-loans
 ```
+Ang `FIREBASE_PROJECT_ID` at `CLOUDINARY_CLOUD_NAME` ay nasa `vars` ng `wrangler.jsonc`. Ang `NEXT_PUBLIC_*` para sa browser ay nasa `.env.production`.
 
-- Ang `NEXT_PUBLIC_*` na variables ay naka-inline sa build, kaya dapat nasa `.env.local` o `.env.production` ang mga ito bago mag-`npm run deploy`.
-- Pagkatapos mag-deploy, idagdag ang domain sa Firebase **Authorized domains** (Setup step 4.2).
-- Config files: `wrangler.jsonc`, `open-next.config.ts`.
+**Firebase:** idagdag ang `kaibigan-loans.pages.dev` sa **Authentication → Settings → Authorized domains**.
 
-**Mahalagang tala:** Sa `next.config.ts`, ang server bundle ay gumagamit ng *browser build* ng Firestore. Ang Node build nito (gRPC/protobufjs) ay gumagamit ng `new Function`, na **bawal sa Cloudflare Workers** (magiging HTTP 500 ang lahat ng page). Huwag itong tanggalin.
-
----
+**Local na test ng production build:** `npm run preview`. Kailangan ng `.dev.vars` na may `CLOUDINARY_API_KEY` at `CLOUDINARY_API_SECRET` (naka-gitignore).
 
 ## Architecture at Project Structure
 
@@ -334,7 +341,6 @@ npm run test:rules   # 8 security rules tests gamit ang Firestore emulator (kail
 | `Upload not allowed (500)` | Kulang ang `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` o `CLOUDINARY_API_SECRET` |
 | `Upload not allowed (401)` | Nag-expire ang session. Mag-sign out at mag-sign in ulit |
 | Firestore "requires an index" | `npm run deploy:rules` (kasama ang `firestore.indexes.json`) |
-| HTTP 500 sa lahat ng page sa Cloudflare | Tiyaking nasa `next.config.ts` pa rin ang Firestore browser-build alias |
 | Mabagal ang unang OCR | Normal lang ito: dina-download pa ang OCR model (~10MB) sa unang gamit |
 
 ---

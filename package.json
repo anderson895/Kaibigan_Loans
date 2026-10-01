@@ -8,9 +8,8 @@
     "start": "next start",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "preview": "next build && wrangler pages dev",
+    "deploy": "next build && wrangler pages deploy",
     "test:rules": "firebase emulators:exec --only firestore --project demo-kaibigan \"vitest run --config vitest.rules.config.mts\"",
     "deploy:rules": "firebase deploy --only firestore --project basiclendingapp"
   },
@@ -31,14 +30,15 @@
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",
-    "@opennextjs/cloudflare": "^1.20.7",
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "esbuild": "^0.27.7",
     "firebase-tools": "^15.32.1",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3",
     "wrangler": "^4.145.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
