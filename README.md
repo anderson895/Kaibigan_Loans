@@ -203,7 +203,11 @@ Ang `FIREBASE_PROJECT_ID` at `CLOUDINARY_CLOUD_NAME` ay nasa `vars` ng `wrangler
 - Pagpapadala sa **Gmail SMTP**: sa Cloudflare, gamit ang native sockets (`worker-mailer`, `src/server/mail-worker.ts`); sa `npm run dev`, gamit ang **Nodemailer** (`src/server/mail-node.ts`). Hindi gumagana ang Nodemailer sa Pages Functions dahil walang Node `net`/`tls` doon.
 - Ang forgot password ay laging sumasagot ng "sent" (kahit walang account) para hindi malaman ng iba kung sino ang may account.
 
-**Cloudflare Turnstile:** widget na "Kaibigan Loans" (domains: `kaibigan-loans.pages.dev`, `localhost`). Sa sign up, resend link at forgot password, vine-verify ito **sa server** bago magpadala ng email. Sa login, sa browser lang ito chine-check, dahil diretso sa Firebase ang login.
+**Cloudflare Turnstile:** widget na "Kaibigan Loans" (domains: `kaibigan-loans.pages.dev`, `localhost`). Sa sign up, resend link at forgot password, vine-verify ito **sa server** gamit ang Siteverify API bago magpadala ng email (`src/server/turnstile.ts`). Tinitingnan din ng server na:
+- galing ang token sa parehong site na tumatanggap nito (`hostname`), kaya hindi tatanggapin sa live ang token na galing sa `localhost` o sa ibang site;
+- para sa tamang form ang token (`action`, nasa `src/lib/turnstileActions.ts`).
+
+Single-use ang bawat token at 5 minuto lang ang bisa. Sa login, sa browser lang ito chine-check, dahil diretso sa Firebase ang login. Doon, ang proteksyon ay ang rate limit ng Firebase at ang Firestore rules (walang mababasa o maisusulat ang account na hindi pa verified).
 
 **Firebase:** idagdag ang `kaibigan-loans.pages.dev` sa **Authentication → Settings → Authorized domains**.
 

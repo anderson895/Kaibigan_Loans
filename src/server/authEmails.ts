@@ -1,4 +1,5 @@
 import { createRemoteJWKSet, jwtVerify } from "jose";
+import { TURNSTILE_ACTIONS } from "../lib/turnstileActions";
 import { renderBrandedEmail } from "./emailTemplate";
 import { createActionCode, EmailNotFoundError, serviceAccountToken } from "./firebaseAdmin";
 import type { SendMail } from "./mail";
@@ -36,10 +37,23 @@ function configured(env: AuthEmailEnv): Configured | null {
   return { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, GMAIL_USER, GMAIL_APP_PASSWORD, TURNSTILE_SECRET_KEY: env.TURNSTILE_SECRET_KEY };
 }
 
-/** Returns an error response when Turnstile is configured and the token is missing or invalid. */
-async function rejectIfNotHuman(request: Request, secret: string | undefined, token: unknown): Promise<Response | null> {
+/**
+ * Returns an error response when Turnstile is configured and the token is missing, invalid, or was solved
+ * on another site or for another form than `actions`.
+ */
+async function rejectIfNotHuman(
+  request: Request,
+  secret: string | undefined,
+  token: unknown,
+  actions: readonly string[],
+): Promise<Response | null> {
   if (!secret) return null; // Not configured (e.g. local dev without keys).
-  const result = await verifyTurnstile(typeof token === "string" ? token : null, secret, request.headers.get("CF-Connecting-IP"));
+  const result = await verifyTurnstile(
+    typeof token === "string" ? token : null,
+    secret,
+    { hostname: new URL(request.url).hostname, actions },
+    request.headers.get("CF-Connecting-IP"),
+  );
   if (result.success) return null;
   return Response.json({ error: "Please complete the security check and try again.", codes: result.errorCodes }, { status: 403 });
 }
@@ -77,7 +91,10 @@ export async function handleSendVerification(request: Request, env: AuthEmailEnv
   }
 
   const body = await readJson(request);
-  const blocked = await rejectIfNotHuman(request, cfg.TURNSTILE_SECRET_KEY, body.turnstileToken);
+  const blocked = await rejectIfNotHuman(request, cfg.TURNSTILE_SECRET_KEY, body.turnstileToken, [
+    TURNSTILE_ACTIONS.signup,
+    TURNSTILE_ACTIONS.resendVerification,
+  ]);
   if (blocked) return blocked;
 
   try {
@@ -118,7 +135,7 @@ export async function handleSendPasswordReset(request: Request, env: AuthEmailEn
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return Response.json({ error: "Enter a valid email address." }, { status: 400 });
 
-  const blocked = await rejectIfNotHuman(request, cfg.TURNSTILE_SECRET_KEY, body.turnstileToken);
+  const blocked = await rejectIfNotHuman(request, cfg.TURNSTILE_SECRET_KEY, body.turnstileToken, [TURNSTILE_ACTIONS.forgotPassword]);
   if (blocked) return blocked;
 
   try {

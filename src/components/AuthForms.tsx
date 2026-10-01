@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { TURNSTILE_ACTIONS } from "@/lib/turnstileActions";
 import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/services/AuthService";
 import { authService } from "@/services/container";
 import { useAuth } from "./AuthProvider";
@@ -212,7 +213,7 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
           Forgot password?
         </MuiLink>
       </Stack>
-      <Turnstile ref={human.ref} onToken={human.setToken} action="login" />
+      <Turnstile ref={human.ref} onToken={human.setToken} action={TURNSTILE_ACTIONS.login} />
       <Messages error={error} notice={notice} />
       <Button
         type="submit"
@@ -314,7 +315,7 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
           </Typography>
         }
       />
-      <Turnstile ref={human.ref} onToken={human.setToken} action="signup" />
+      <Turnstile ref={human.ref} onToken={human.setToken} action={TURNSTILE_ACTIONS.signup} />
       <Messages error={error} notice={notice} />
       <Button
         type="submit"
@@ -370,7 +371,7 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
         autoComplete="email"
         required
       />
-      <Turnstile ref={human.ref} onToken={human.setToken} action="forgot_password" />
+      <Turnstile ref={human.ref} onToken={human.setToken} action={TURNSTILE_ACTIONS.forgotPassword} />
       <Messages error={error} notice={notice} />
       <Button type="submit" variant="contained" size="large" disabled={busy || !human.ready || !email} sx={pill}>
         {busy ? "Sending..." : "Send Reset Link"}
@@ -421,7 +422,7 @@ export function VerifyEmailPanel() {
       <Box sx={{ width: "100%" }}>
         <Messages error={error} notice={notice} />
       </Box>
-      <Turnstile ref={human.ref} onToken={human.setToken} action="resend_verification" />
+      <Turnstile ref={human.ref} onToken={human.setToken} action={TURNSTILE_ACTIONS.resendVerification} />
       <Button
         fullWidth
         variant="outlined"
