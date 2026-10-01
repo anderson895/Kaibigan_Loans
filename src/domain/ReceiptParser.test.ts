@@ -29,6 +29,22 @@ describe("ReceiptParser", () => {
     expect(parser.parse(text)).toMatchObject({ amount: 950.5, referenceNo: "998877665544" });
   });
 
+  it("reads a reference number on the line after its label (Maya / InstaPay)", () => {
+    const text = ["Transfer successful", "Amount", "2,000.00", "Reference ID", "7A3F 9921 0045", "Date Oct 1, 2026"].join("\n");
+    expect(parser.parse(text)).toMatchObject({ amount: 2000, referenceNo: "7A3F 9921 0045" });
+  });
+
+  it("recognizes other reference labels", () => {
+    expect(parser.parse("Trace No. 123456789").referenceNo).toBe("123456789");
+    expect(parser.parse("Confirmation Number: 88812345").referenceNo).toBe("88812345");
+    expect(parser.parse("InstaPay Ref No. 20261001ABC123").referenceNo).toBe("20261001ABC123");
+  });
+
+  it("finds no reference on a pre-transfer confirmation screen", () => {
+    const text = ["You're about to transfer", "Amount 2,000.00", "Fee 10.00", "Total P 2,010.00", "Pay PHP 2,010.00"].join("\n");
+    expect(parser.parse(text)).toMatchObject({ amount: 2000, referenceNo: null });
+  });
+
   it("returns nulls when nothing is readable", () => {
     expect(parser.parse("blurry image")).toMatchObject({ amount: null, referenceNo: null });
   });

@@ -1,5 +1,9 @@
 import type { OcrResult } from "./Payment";
 
+/** Words that introduce a reference number on GCash, Maya, InstaPay/PESONet and bank receipts. */
+const REF_WORDS = String.raw`(?:ref(?:erence)?\.?\s*(?:no|number|id|code|#)?\.?|(?:transaction|txn|trans)\.?\s*(?:no|number|id|ref)\.?|trace\s*(?:no|number)\.?|confirmation\s*(?:no|number|code)\.?|instapay\s*ref(?:erence)?\.?\s*(?:no)?\.?|invoice\s*(?:no|number)\.?)`;
+const REF_VALUE = String.raw`([A-Z0-9][A-Z0-9 -]{5,30})`;
+
 /**
  * Extracts the amount and reference number from OCR text of an e-wallet/bank receipt
  * (GCash, Maya, bank transfers). Prefers numbers on lines labelled "amount"/"total",
@@ -8,8 +12,11 @@ import type { OcrResult } from "./Payment";
 export class ReceiptParser {
   private static readonly AMOUNT = /(?:₱|PHP|P)?\s*(\d{1,3}(?:,\d{3})+(?:\.\d{2})?|\d+\.\d{2})/gi;
   private static readonly AMOUNT_LABEL = /(total\s+amount|amount\s+sent|amount\s+paid|amount|total)/i;
-  private static readonly REF_LABEL =
-    /(?:ref(?:erence)?\.?\s*(?:no|number|id|#)?\.?|transaction\s+(?:no|id)\.?|trace\s+no\.?)\s*[:#]?\s*([A-Z0-9][A-Z0-9 -]{5,30})/i;
+  /** Label followed by the value on the same line. */
+  private static readonly REF_LABEL = new RegExp(String.raw`${REF_WORDS}\s*[:#]?\s*${REF_VALUE}`, "i");
+  /** Label alone on its line (the value is on the next line). */
+  private static readonly REF_LABEL_ONLY = new RegExp(String.raw`^\s*${REF_WORDS}\s*[:#]?\s*$`, "i");
+  private static readonly VALUE_LINE = new RegExp(String.raw`^\s*${REF_VALUE}`, "i");
 
   parse(text: string): OcrResult {
     const normalized = text.replace(/\r/g, "");
@@ -27,7 +34,7 @@ export class ReceiptParser {
   }
 
   private isReferenceLine(line: string): boolean {
-    return ReceiptParser.REF_LABEL.test(line);
+    return ReceiptParser.REF_LABEL.test(line) || ReceiptParser.REF_LABEL_ONLY.test(line);
   }
 
   private findAmount(text: string): number | null {
@@ -45,11 +52,19 @@ export class ReceiptParser {
   }
 
   private findReference(text: string): string | null {
-    for (const line of text.split("\n")) {
-      const match = line.match(ReceiptParser.REF_LABEL);
-      if (!match) continue;
-      const ref = match[1].replace(/\s+/g, " ").trim();
-      if (/\d{4,}/.test(ref.replace(/[\s-]/g, ""))) return ref;
+    const lines = text.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      // Try the value on the label's own line first, then the next line (label alone on its line).
+      const candidates = [
+        lines[i].match(ReceiptParser.REF_LABEL)?.[1],
+        ReceiptParser.REF_LABEL_ONLY.test(lines[i]) ? (lines[i + 1] ?? "").match(ReceiptParser.VALUE_LINE)?.[1] : undefined,
+      ];
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const ref = candidate.replace(/\s+/g, " ").trim();
+        // A real reference has a run of digits; this skips labels followed by plain words.
+        if (/\d{4,}/.test(ref.replace(/[\s-]/g, ""))) return ref;
+      }
     }
     return null;
   }

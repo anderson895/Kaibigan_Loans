@@ -12,5 +12,7 @@ Backend:
 -Firebase
 -claudinary
 
+
+
 Deployment:
 -www.cloudflare.com
