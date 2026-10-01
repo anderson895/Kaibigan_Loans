@@ -5,7 +5,7 @@ import { Alert, Box, Button, Card, CardActionArea, CardContent, Paper, Stack, Ty
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { useAuth } from "@/components/AuthProvider";
+import { NotLinkedCard } from "@/components/NotLinkedCard";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
 import { UploadPaymentDialog } from "@/components/PaymentDialogs";
 import { EmptyState, ErrorAlert, Loading, PageHeader, StatusChip } from "@/components/ui";
@@ -85,7 +85,6 @@ function MyLoanDetails({ loan, onBack }: { loan: Loan; onBack: () => void }) {
 }
 
 function MyLoansView() {
-  const { email } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const me = useMyBorrower();
@@ -93,13 +92,7 @@ function MyLoansView() {
 
   if (me.isPending || loans.isPending) return <Loading />;
 
-  if (!me.data) {
-    return (
-      <Alert severity="warning">
-        Hindi pa naka-link ang account mo (<strong>{email}</strong>). Ibigay ang Gmail na ito sa nagpautang para ma-add ka.
-      </Alert>
-    );
-  }
+  if (!me.data) return <NotLinkedCard />;
 
   const all = loans.data ?? [];
   const selected = all.find((l) => l.id === params.get("id"));

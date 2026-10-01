@@ -1,10 +1,11 @@
 "use client";
-import { Alert, Button, InputAdornment, Paper, Stack, TextField } from "@mui/material";
+import { Button, InputAdornment, Paper, Stack, TextField } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ErrorAlert, Loading, PageHeader } from "@/components/ui";
 import { today } from "@/domain/dates";
 import { TermFields } from "@/components/LoanForm";
+import { NotLinkedCard } from "@/components/NotLinkedCard";
 import type { TermUnit } from "@/domain/InterestStrategy";
 import type { PaymentPlan } from "@/domain/Loan";
 import { useMyBorrower, useRequestLoan } from "@/hooks/queries";
@@ -21,7 +22,7 @@ export default function RequestLoanPage() {
   const [notes, setNotes] = useState("");
 
   if (me.isPending) return <Loading />;
-  if (!me.data) return <Alert severity="warning">Hindi pa naka-link ang account mo. Makipag-ugnayan sa nagpautang.</Alert>;
+  if (!me.data) return <NotLinkedCard />;
   const borrower = me.data;
   const payout = payoutDetails ?? borrower.payoutDetails;
 

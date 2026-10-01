@@ -15,6 +15,7 @@ import { Avatar, Box, Button, Container, Link as MuiLink, Stack, Typography } fr
 import { Dancing_Script } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { IMAGES } from "@/lib/assets";
 import { Brand } from "./AppShell";
 import { useAuth } from "./AuthProvider";
 import { homeFor } from "./RoleGuard";
@@ -204,10 +205,10 @@ function Hero() {
           />
           <Box
             component="img"
-            src="/hero-dashboard.webp"
+            src={IMAGES.heroDashboard.src}
             alt="Kaibigan Loans dashboard sa laptop at phone"
-            width={1400}
-            height={742}
+            width={IMAGES.heroDashboard.width}
+            height={IMAGES.heroDashboard.height}
             sx={{ position: "relative", zIndex: 1, width: "100%", height: "auto", display: "block" }}
           />
         </Box>

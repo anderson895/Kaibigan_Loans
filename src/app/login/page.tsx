@@ -12,6 +12,7 @@ import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Brand } from "@/components/AppShell";
 import { useAuth } from "@/components/AuthProvider";
 import { homeFor } from "@/components/RoleGuard";
+import { IMAGES } from "@/lib/assets";
 import { authService } from "@/services/container";
 
 const brush = Caveat_Brush({ subsets: ["latin"], weight: "400" });
@@ -55,20 +56,11 @@ function Showcase() {
         </Stack>
         <Box
           component="img"
-          src="/login-coins.webp"
+          src={IMAGES.loginCoins.src}
           alt="Phone na may check mark at mga piso coins"
-          width={321}
-          height={323}
-          sx={{
-            width: "100%",
-            maxWidth: 340,
-            height: "auto",
-            justifySelf: "center",
-            mixBlendMode: "multiply",
-            // The source image has an opaque light background; fade its edges into the page.
-            maskImage: "radial-gradient(ellipse 50% 50% at 50% 52%, #000 72%, transparent 100%)",
-            WebkitMaskImage: "radial-gradient(ellipse 50% 50% at 50% 52%, #000 72%, transparent 100%)",
-          }}
+          width={IMAGES.loginCoins.width}
+          height={IMAGES.loginCoins.height}
+          sx={{ width: "100%", maxWidth: 320, height: "auto", justifySelf: "center" }}
         />
       </Box>
 

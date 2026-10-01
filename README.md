@@ -229,6 +229,12 @@ src/
     ├── (borrower)/       # my-loans, request
     ├── login/
     └── api/upload-signature/route.ts
+public/images/            # Images na sine-serve ng site (WebP, naka-optimize)
+├── landing/hero-dashboard.webp
+└── login/coins.webp
+assets/images/            # High-res originals — dito i-regenerate ang mga WebP sa public/
+src/app/icon.png          # Favicon (tab bar); src/app/apple-icon.png para sa phone home screen
+src/lib/assets.ts         # Iisang listahan ng image paths na ginagamit sa code
 firestore.rules           # Security rules (ang tunay na proteksyon)
 tests/firestore.rules.test.ts
 ```

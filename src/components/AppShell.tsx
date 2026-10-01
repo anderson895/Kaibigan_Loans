@@ -3,6 +3,7 @@ import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
 import AddCircleOutline from "@mui/icons-material/AddCircleOutlineOutlined";
 import DashboardOutlined from "@mui/icons-material/DashboardOutlined";
 import GroupOutlined from "@mui/icons-material/GroupOutlined";
+import Logout from "@mui/icons-material/Logout";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
 import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
@@ -115,6 +116,20 @@ function PendingBell() {
   );
 }
 
+/** Google profile photo with the email initial as fallback (Google blocks photos sent with a referrer). */
+function UserAvatar({ size = 34 }: { size?: number }) {
+  const { user } = useAuth();
+  return (
+    <Avatar
+      src={user?.photoURL ?? undefined}
+      slotProps={{ img: { referrerPolicy: "no-referrer" } }}
+      sx={{ width: size, height: size, bgcolor: "primary.main", fontSize: size * 0.45 }}
+    >
+      {(user?.displayName ?? user?.email ?? "?").charAt(0).toUpperCase()}
+    </Avatar>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const router = useRouter();
@@ -122,6 +137,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const isAdmin = role === "admin";
   const items = isAdmin ? ADMIN_NAV : BORROWER_NAV;
+  const logout = async () => {
+    setMenuAnchor(null);
+    setMobileOpen(false);
+    await authService.signOut();
+    router.replace("/login");
+  };
 
   const sidebar = (
     <Box sx={{ height: "100%", bgcolor: SIDEBAR_BG, display: "flex", flexDirection: "column", py: 2.5 }}>
@@ -130,15 +151,34 @@ export function AppShell({ children }: { children: ReactNode }) {
       </Box>
       <NavLinks items={items} onNavigate={() => setMobileOpen(false)} />
       <Box sx={{ flexGrow: 1 }} />
+      <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mx: 2, mb: 1 }} />
       {isAdmin && (
-        <>
-          <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mx: 2, mb: 1 }} />
-          <NavLinks
-            items={[{ href: "/settings", label: "Settings", icon: <SettingsOutlined /> }]}
-            onNavigate={() => setMobileOpen(false)}
-          />
-        </>
+        <NavLinks
+          items={[{ href: "/settings", label: "Settings", icon: <SettingsOutlined /> }]}
+          onNavigate={() => setMobileOpen(false)}
+        />
       )}
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", px: 2.5, pt: 1.5 }}>
+        <UserAvatar size={32} />
+        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+          <Typography variant="body2" noWrap sx={{ color: "#fff", fontWeight: 600 }}>
+            {user?.displayName ?? "Account"}
+          </Typography>
+          <Typography variant="caption" noWrap component="div" sx={{ color: "#94a3b8" }}>
+            {user?.email}
+          </Typography>
+        </Box>
+      </Stack>
+      <Box sx={{ px: 1.5, pt: 1.5 }}>
+        <ListItemButton onClick={logout} sx={{ borderRadius: 2, color: "#fca5a5", "&:hover": { bgcolor: "rgba(248,113,113,0.12)" } }}>
+          <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
+            <Logout />
+          </ListItemIcon>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Mag Logout
+          </Typography>
+        </ListItemButton>
+      </Box>
     </Box>
   );
 
@@ -170,20 +210,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Box sx={{ flexGrow: 1 }} />
           {isAdmin && <PendingBell />}
           <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} aria-label="Account">
-            <Avatar src={user?.photoURL ?? undefined} sx={{ width: 34, height: 34 }} />
+            <UserAvatar />
           </IconButton>
           <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
             <MenuItem disabled>
               <Typography variant="body2">{user?.email}</Typography>
             </MenuItem>
-            <MenuItem
-              onClick={async () => {
-                setMenuAnchor(null);
-                await authService.signOut();
-                router.replace("/login");
-              }}
-            >
-              Sign out
+            <MenuItem onClick={logout}>
+              <ListItemIcon>
+                <Logout fontSize="small" />
+              </ListItemIcon>
+              Mag Logout
             </MenuItem>
           </Menu>
         </Toolbar>
