@@ -81,23 +81,41 @@ function Heading({ title, subtitle }: { title: string; subtitle: string }) {
   );
 }
 
+/**
+ * Outlined input with a leading icon and a floating label. MUI keeps the label floated whenever there is
+ * a start icon, so we float it ourselves: while focused, when it has a value, or when the browser autofills it.
+ */
 function Field({ label, icon, ...props }: { label: string; icon: ReactNode } & React.ComponentProps<typeof TextField>) {
+  const [focused, setFocused] = useState(false);
+  const [autofilled, setAutofilled] = useState(false);
+  const floated = focused || autofilled || String(props.value ?? "") !== "";
   return (
-    <Box>
-      <Typography sx={{ fontWeight: 600, mb: 0.75 }}>{label}</Typography>
-      <TextField
-        fullWidth
-        {...props}
-        slotProps={{
-          ...props.slotProps,
-          input: {
-            startAdornment: <InputAdornment position="start">{icon}</InputAdornment>,
-            ...(props.slotProps?.input as object),
-            sx: { borderRadius: 1.2, bgcolor: "background.paper" },
-          },
-        }}
-      />
-    </Box>
+    <TextField
+      fullWidth
+      label={label}
+      {...props}
+      onFocus={(e) => {
+        setFocused(true);
+        props.onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        setFocused(false);
+        props.onBlur?.(e);
+      }}
+      // At rest, the label sits beside the icon instead of under it.
+      sx={{ "& .MuiInputLabel-root:not(.MuiInputLabel-shrink)": { transform: "translate(46px, 16px) scale(1)" } }}
+      slotProps={{
+        ...props.slotProps,
+        inputLabel: { shrink: floated, required: false },
+        // Chrome autofills without firing onChange; MUI flags it with this animation on the input.
+        htmlInput: { onAnimationStart: (e: React.AnimationEvent) => setAutofilled(e.animationName === "mui-auto-fill") },
+        input: {
+          startAdornment: <InputAdornment position="start">{icon}</InputAdornment>,
+          ...(props.slotProps?.input as object),
+          sx: { borderRadius: 1.2, bgcolor: "background.paper" },
+        },
+      }}
+    />
   );
 }
 
@@ -108,7 +126,6 @@ export function PasswordField({ label, value, onChange, autoComplete }: { label:
       label={label}
       icon={<LockOutlined color="action" />}
       type={show ? "text" : "password"}
-      placeholder="Enter your password"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       autoComplete={autoComplete}
@@ -183,7 +200,6 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
@@ -263,7 +279,6 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
@@ -350,7 +365,6 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
