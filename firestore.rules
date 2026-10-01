@@ -1,0 +1,83 @@
+rules_version = '2';
+
+// Kaibigan Loans security rules.
+// - Admins: documents in /admins/{email}. Full access.
+// - Borrowers: signed in with Google; can only see records whose email matches theirs.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    function myEmail() {
+      return request.auth.token.email.lower();
+    }
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(myEmail()));
+    }
+    function setupDone() {
+      return exists(/databases/$(database)/documents/meta/setup);
+    }
+
+    // First sign-in after deploy claims admin (admins/{email} + meta/setup in one batch).
+    match /meta/setup {
+      allow read: if signedIn();
+      allow create: if signedIn() && !setupDone()
+        && request.resource.data.owner == myEmail()
+        && existsAfter(/databases/$(database)/documents/admins/$(myEmail()));
+      allow update, delete: if false;
+    }
+
+    match /admins/{email} {
+      allow get: if signedIn() && email == myEmail();
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        || (signedIn() && !setupDone() && email == myEmail()
+            && getAfter(/databases/$(database)/documents/meta/setup).data.owner == myEmail());
+      allow update, delete: if isAdmin();
+    }
+
+    match /borrowers/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.email == myEmail());
+      allow write: if isAdmin();
+    }
+
+    match /loans/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.borrowerEmail == myEmail());
+      allow update, delete: if isAdmin();
+      // Admins create any loan; borrowers may only file a pending request for themselves.
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.borrowerEmail == myEmail()
+        && get(/databases/$(database)/documents/borrowers/$(request.resource.data.borrowerId)).data.email == myEmail()
+        && request.resource.data.amountPaid == 0
+        && request.resource.data.interestType == 'none'
+        && request.resource.data.principal is number
+        && request.resource.data.principal > 0
+        && request.resource.data.principal <= 100000
+      );
+    }
+
+    match /payments/{id} {
+      allow read: if isAdmin() || (signedIn() && resource.data.borrowerEmail == myEmail());
+      allow update, delete: if isAdmin();
+      // Borrowers submit pending payments for their own active loans only; approval is admin-only.
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.borrowerEmail == myEmail()
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.reviewedAt == null
+        && get(/databases/$(database)/documents/loans/$(request.resource.data.loanId)).data.borrowerEmail == myEmail()
+        && get(/databases/$(database)/documents/loans/$(request.resource.data.loanId)).data.status in ['ongoing', 'overdue']
+      );
+    }
+
+    match /activity/{id} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isAdmin() || (signedIn() && request.resource.data.actorEmail == myEmail());
+    }
+  }
+}

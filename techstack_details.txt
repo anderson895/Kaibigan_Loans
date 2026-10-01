@@ -1,0 +1,16 @@
+Architecture
+Programming Paradigm – Object-Oriented Programming (OOP)
+
+Frontend:
+- TanStackQuery
+- React+TypeScript
+- Material UI
+- Material Icon
+
+Backend:
+-NextJs
+-Firebase
+-claudinary
+
+Deployment:
+-www.cloudflare.com
