@@ -130,6 +130,11 @@ describe("self-registered borrower profile", () => {
     await assertFails(setDoc(doc(db, "borrowers/someoneelse"), profile("newbie@gmail.com")));
   });
 
+  it("can record when the terms were accepted", async () => {
+    const db = user("newbie@gmail.com");
+    await assertSucceeds(setDoc(doc(db, "borrowers/newbie"), { ...profile("newbie@gmail.com"), termsAcceptedAt: 1 }));
+  });
+
   it("cannot create a profile for another email or with extra fields", async () => {
     const db = user("newbie@gmail.com");
     await assertFails(setDoc(doc(db, "borrowers/newbie"), profile("anna@gmail.com")));

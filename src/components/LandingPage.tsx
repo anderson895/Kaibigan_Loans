@@ -21,6 +21,7 @@ import { useLenderContact } from "@/hooks/queries";
 import { IMAGES } from "@/lib/assets";
 import { DEFAULT_LENDER_PHONE, toE164 } from "@/services/LenderContactService";
 import { Brand } from "./AppShell";
+import { TermsDialog } from "./TermsDialog";
 import { useAuth } from "./AuthProvider";
 import { homeFor } from "./RoleGuard";
 
@@ -334,6 +335,7 @@ function Contact() {
 }
 
 function Footer() {
+  const [termsOpen, setTermsOpen] = useState(false);
   return (
     <Box component="footer" sx={{ position: "relative", pt: 6, pb: 8, overflow: "hidden" }}>
       <Box
@@ -354,7 +356,11 @@ function Footer() {
         <Box sx={{ width: { xs: 40, sm: 70 }, height: "1px", bgcolor: "primary.main", opacity: 0.4 }} />
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ position: "relative", display: "block", textAlign: "center", mt: 2 }}>
-        © {new Date().getFullYear()} Kaibigan Loans
+        © {new Date().getFullYear()} Kaibigan Loans ·{" "}
+        <MuiLink component="button" type="button" color="inherit" onClick={() => setTermsOpen(true)} sx={{ verticalAlign: "baseline", fontSize: "inherit" }}>
+          Terms and Conditions
+        </MuiLink>
+        <TermsDialog open={termsOpen} onClose={() => setTermsOpen(false)} />
       </Typography>
     </Box>
   );

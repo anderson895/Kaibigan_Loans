@@ -26,6 +26,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/services/AuthService";
 import { authService } from "@/services/container";
 import { useAuth } from "./AuthProvider";
+import { TermsDialog } from "./TermsDialog";
 
 /** Runs an async action with a busy flag and a friendly error message. */
 function useAction() {
@@ -108,13 +109,23 @@ function PasswordField({ label, value, onChange, autoComplete }: { label: string
   );
 }
 
-function GoogleButton({ label, busy, onError }: { label: string; busy: boolean; onError: (msg: string) => void }) {
+function GoogleButton({
+  label,
+  busy,
+  onError,
+  disabled = false,
+}: {
+  label: string;
+  busy: boolean;
+  onError: (msg: string) => void;
+  disabled?: boolean;
+}) {
   return (
     <Button
       variant="outlined"
       size="large"
       startIcon={<Google />}
-      disabled={busy}
+      disabled={busy || disabled}
       sx={{ ...pill, borderWidth: 1.5 }}
       onClick={() => authService.signInWithGoogle().catch((e) => onError(authErrorMessage(e)))}
     >
@@ -137,6 +148,7 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
+  const [termsOpen, setTermsOpen] = useState(false);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -176,6 +188,14 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
       </Button>
       <Divider sx={{ color: "text.secondary", fontSize: 14 }}>o</Divider>
       <GoogleButton label="Sign in with Google" busy={busy} onError={setError} />
+      <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", mt: -1 }}>
+        By continuing, you agree to our{" "}
+        <MuiLink component="button" type="button" onClick={() => setTermsOpen(true)} sx={{ verticalAlign: "baseline", fontSize: "inherit" }}>
+          Terms and Conditions
+        </MuiLink>
+        .
+      </Typography>
+      <TermsDialog open={termsOpen} onClose={() => setTermsOpen(false)} />
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
         Don't have an account?{" "}
         <MuiLink component="button" type="button" onClick={onSignup} sx={{ fontWeight: 600, verticalAlign: "baseline" }}>
@@ -192,10 +212,13 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [agreed, setAgreed] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
   const mismatch = confirm.length > 0 && confirm !== password;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!agreed) return setError("Please accept the Terms and Conditions to continue.");
     if (mismatch) return setError("Passwords do not match.");
     run(() => authService.register(name, email, password));
   };
@@ -229,19 +252,48 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
           {mismatch ? "Passwords do not match." : `At least ${MIN_PASSWORD_LENGTH} characters.`}
         </Typography>
       </Box>
+      <FormControlLabel
+        sx={{ alignItems: "flex-start", mr: 0 }}
+        control={<Checkbox checked={agreed} onChange={(e) => setAgreed(e.target.checked)} sx={{ pt: 0.25 }} />}
+        label={
+          <Typography variant="body2" sx={{ pt: 0.5 }}>
+            I have read and agree to the{" "}
+            <MuiLink
+              component="button"
+              type="button"
+              onClick={(e) => {
+                // Open the popup without toggling the checkbox.
+                e.preventDefault();
+                e.stopPropagation();
+                setTermsOpen(true);
+              }}
+              sx={{ verticalAlign: "baseline", fontSize: "inherit" }}
+            >
+              Terms and Conditions
+            </MuiLink>
+            , including how my personal data is used.
+          </Typography>
+        }
+      />
       <Messages error={error} notice={notice} />
       <Button
         type="submit"
         variant="contained"
         size="large"
-        disabled={busy || !name || !email || password.length < MIN_PASSWORD_LENGTH || mismatch || !confirm}
+        disabled={busy || !agreed || !name || !email || password.length < MIN_PASSWORD_LENGTH || mismatch || !confirm}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <PersonOutlined />}
         sx={pill}
       >
         Mag Sign Up
       </Button>
       <Divider sx={{ color: "text.secondary", fontSize: 14 }}>o</Divider>
-      <GoogleButton label="Sign up with Google" busy={busy} onError={setError} />
+      <GoogleButton label="Sign up with Google" busy={busy} onError={setError} disabled={!agreed} />
+      <TermsDialog open={termsOpen} onClose={() => setTermsOpen(false)} onAgree={() => setAgreed(true)} />
+      {!agreed && (
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "center", mt: -1 }}>
+          Please accept the Terms and Conditions to continue.
+        </Typography>
+      )}
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
         Already have an account?{" "}
         <MuiLink component="button" type="button" onClick={onLogin} sx={{ fontWeight: 600, verticalAlign: "baseline" }}>

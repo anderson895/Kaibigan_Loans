@@ -51,7 +51,7 @@ service cloud.firestore {
         signedIn()
         && id == request.auth.uid
         && request.resource.data.email == myEmail()
-        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'payoutDetails', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'payoutDetails', 'createdAt', 'termsAcceptedAt'])
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
         && request.resource.data.name.size() <= 100

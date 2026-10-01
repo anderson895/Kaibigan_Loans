@@ -5,6 +5,8 @@ export interface BorrowerProps {
   phone: string;
   payoutDetails: string;
   createdAt: number;
+  /** When the user accepted the Terms and Conditions (set when the profile is created at sign-up). */
+  termsAcceptedAt?: number;
 }
 
 export type BorrowerInput = Omit<BorrowerProps, "id" | "createdAt">;
@@ -27,7 +29,8 @@ export class Borrower {
   /** Borrower profile created automatically when a user registers; the doc id is their auth uid. */
   static forRegisteredUser(uid: string, name: string, email: string): Borrower {
     const created = Borrower.create({ name: name.trim() || email.split("@")[0], email, phone: "", payoutDetails: "" });
-    return new Borrower({ ...created.toProps(), id: uid });
+    // Profiles are only created for users who signed up through the app, which requires accepting the terms.
+    return new Borrower({ ...created.toProps(), id: uid, termsAcceptedAt: Date.now() });
   }
 
   get id() { return this.props.id; }
