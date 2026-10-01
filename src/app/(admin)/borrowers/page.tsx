@@ -1,5 +1,6 @@
 "use client";
 import Add from "@mui/icons-material/Add";
+import PersonAddOutlined from "@mui/icons-material/PersonAddOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
 import Search from "@mui/icons-material/Search";
 import {
@@ -33,20 +34,30 @@ export default function BorrowersPage() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<{ borrower: Borrower; key: number } | null>(null);
   const [lendTo, setLendTo] = useState<{ borrower: Borrower; key: number } | null>(null);
+  const [adding, setAdding] = useState<number | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return borrowers.filter((b) => !q || b.name.toLowerCase().includes(q) || b.email.includes(q));
   }, [borrowers, search]);
 
-  const statsOf = (email: string) => {
-    const active = loans.filter((l) => l.borrowerEmail === email && l.isActive);
+  // By id, not email: borrowers added without an email would otherwise share stats.
+  const statsOf = (borrowerId: string) => {
+    const active = loans.filter((l) => l.borrowerId === borrowerId && l.isActive);
     return { active: active.length, outstanding: active.reduce((sum, l) => sum + l.balance, 0) };
   };
 
   return (
     <>
-      <PageHeader title="Borrowers" subtitle="Everyone who registered. Pick a borrower to create a loan for them." />
+      <PageHeader
+        title="Borrowers"
+        subtitle="Everyone who registered, plus borrowers you added yourself. Pick one to create a loan."
+        action={
+          <Button variant="contained" startIcon={<PersonAddOutlined />} onClick={() => setAdding(Date.now())}>
+            Add Borrower
+          </Button>
+        }
+      />
       <Paper sx={{ p: 2.5 }}>
         <TextField
           size="small"
@@ -61,7 +72,9 @@ export default function BorrowersPage() {
           <Loading />
         ) : filtered.length === 0 ? (
           <EmptyState>
-            {borrowers.length === 0 ? "No borrowers yet. They will appear here once they register and verify their email." : "No matches."}
+            {borrowers.length === 0
+              ? "No borrowers yet. They appear here once they register — or click Add Borrower to add someone who won't use the website."
+              : "No matches."}
           </EmptyState>
         ) : (
           <TableContainer>
@@ -79,11 +92,11 @@ export default function BorrowersPage() {
               </TableHead>
               <TableBody>
                 {filtered.map((b) => {
-                  const stats = statsOf(b.email);
+                  const stats = statsOf(b.id);
                   return (
                     <TableRow key={b.id} hover>
                       <TableCell>
-                        <NameCell name={b.name} sub={b.email} />
+                        <NameCell name={b.name} sub={b.hasEmail ? b.email : "No website account"} />
                       </TableCell>
                       <TableCell>{b.phone || "-"}</TableCell>
                       <TableCell sx={{ maxWidth: 240 }}>{b.payoutDetails || "-"}</TableCell>
@@ -117,6 +130,7 @@ export default function BorrowersPage() {
         )}
       </Paper>
       {editing && <BorrowerDialog key={editing.key} open borrower={editing.borrower} onClose={() => setEditing(null)} />}
+      {adding && <BorrowerDialog key={adding} open borrower={null} onClose={() => setAdding(null)} />}
       {lendTo && (
         <NewLoanDialog
           key={lendTo.key}

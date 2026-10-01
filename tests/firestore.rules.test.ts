@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, writeBatch } from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, query, where, setDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
@@ -161,5 +161,19 @@ describe("admin access", () => {
     await assertSucceeds(updateDoc(doc(db, "payments/annaPay"), { status: "approved" }));
     await assertSucceeds(updateDoc(doc(db, "loans/annaLoan"), { balance: 4900, amountPaid: 100 }));
     await assertSucceeds(setDoc(doc(db, "admins", MARK), { email: MARK }));
+  });
+
+  it("records cash payments and deletes payments; borrowers cannot", async () => {
+    const cash = { loanId: "annaLoan", borrowerEmail: ANNA, amount: 600, status: "approved", method: "cash", reviewedAt: 1 };
+    await assertSucceeds(setDoc(doc(user(ADMIN), "payments/cash1"), cash));
+    await assertSucceeds(deleteDoc(doc(user(ADMIN), "payments/cash1")));
+
+    const anna = user(ANNA);
+    await assertFails(setDoc(doc(anna, "payments/cash2"), cash));
+    await assertFails(deleteDoc(doc(anna, "payments/annaPay")));
+  });
+
+  it("adds borrowers without an email", async () => {
+    await assertSucceeds(setDoc(doc(user(ADMIN), "borrowers/lola"), { name: "Lola Nena", email: "", phone: "", payoutDetails: "", createdAt: 1 }));
   });
 });

@@ -32,6 +32,11 @@ export class LoanRepository extends BaseRepository<Loan, LoanProps> {
     return this.list(orderBy("createdAt", "desc"));
   }
 
+  /** Admin only: every loan of one borrower (works for borrowers without an email too). */
+  listByBorrower(borrowerId: string) {
+    return this.list(where("borrowerId", "==", borrowerId));
+  }
+
   /** Borrowers may only query by their own email (enforced by security rules). */
   listByEmail(email: string) {
     return this.list(where("borrowerEmail", "==", email.toLowerCase()), orderBy("createdAt", "desc"));
@@ -66,6 +71,8 @@ export type ActivityType =
   | "request_rejected"
   | "payment_submitted"
   | "payment_approved"
+  | "payment_recorded"
+  | "payment_deleted"
   | "payment_rejected";
 
 export interface ActivityProps {

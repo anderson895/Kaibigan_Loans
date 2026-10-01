@@ -175,6 +175,49 @@ describe("Editing loan terms", () => {
   });
 });
 
+describe("Manual payments and corrections", () => {
+  // ₱2,000 + ₱400 fixed, 4 weekly installments of ₱600.
+  const weekly = Loan.create({
+    ...base,
+    principal: 2000,
+    interestValue: 400,
+    term: 4,
+    termUnit: "weeks",
+    startDate: "2026-10-01",
+  });
+
+  it("knows how much is left on each installment", () => {
+    const paid = weekly.applyPayment(800, "2026-10-08");
+    expect([0, 1, 2, 3].map((i) => paid.remainingFor(i))).toEqual([0, 400, 600, 600]);
+    expect(paid.remainingFor(9)).toBe(0);
+  });
+
+  it("removing a payment restores the balance and the schedule", () => {
+    const paid = weekly.applyPayment(600, "2026-10-08").applyPayment(600, "2026-10-15");
+    const undone = paid.removePayment(600);
+    expect(undone.balance).toBe(1800);
+    expect(undone.amountPaid).toBe(600);
+    expect(undone.schedule[0]).toMatchObject({ status: "paid", paidDate: "2026-10-08" });
+    expect(undone.schedule[1]).toMatchObject({ status: "pending", paidDate: null });
+  });
+
+  it("removing a payment from a fully paid loan makes it active again", () => {
+    const done = weekly.applyPayment(2400, "2026-10-29");
+    expect(done.storedStatus).toBe("paid");
+    const undone = done.removePayment(600);
+    expect(undone.storedStatus).toBe("ongoing");
+    expect(undone.balance).toBe(600);
+    expect(undone.schedule[3]).toMatchObject({ status: "pending", paidDate: null });
+    // Back to unpaid means the terms can be edited again once every payment is removed.
+    expect(undone.removePayment(1800).canEditTerms).toBe(true);
+  });
+
+  it("cannot remove more than was paid", () => {
+    expect(() => weekly.applyPayment(600, "2026-10-08").removePayment(700)).toThrow();
+    expect(() => weekly.removePayment(1)).toThrow();
+  });
+});
+
 describe("Loan status", () => {
   it("is overdue when an unpaid installment is past due", () => {
     const loan = Loan.create(base);

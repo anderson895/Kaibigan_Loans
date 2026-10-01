@@ -3,6 +3,7 @@ import Add from "@mui/icons-material/Add";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import DeleteOutline from "@mui/icons-material/DeleteOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
+import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import Search from "@mui/icons-material/Search";
 import {
   Box,
@@ -22,7 +23,7 @@ import { DisbursementSection } from "@/components/DisbursementPanel";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
 import { EditLoanDialog, NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
 import { LoansTable } from "@/components/LoansTable";
-import { ReviewPaymentDialog } from "@/components/PaymentDialogs";
+import { RecordPaymentDialog, ReviewPaymentDialog } from "@/components/PaymentDialogs";
 import { ErrorAlert, Loading, PageHeader } from "@/components/ui";
 import { today } from "@/domain/dates";
 import type { Loan, LoanStatus } from "@/domain/Loan";
@@ -44,9 +45,11 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const [reviewing, setReviewing] = useState<Payment | null>(null);
   const [reviewRequest, setReviewRequest] = useState(false);
   const [editing, setEditing] = useState(false);
+  // Record Payment dialog: null = closed; the amount pre-fills one installment when using "Mark paid".
+  const [recording, setRecording] = useState<{ amount?: number } | null>(null);
 
   const remove = () => {
-    if (confirm(`Delete ${loan.borrowerName}'s loan? This cannot be undone.`)) {
+    if (confirm(`Delete ${loan.borrowerName}'s loan? Its payments and activity will also be deleted. This cannot be undone.`)) {
       deleteLoan.mutate(loan.id, { onSuccess: onClose });
     }
   };
@@ -98,16 +101,24 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
         Payment Schedule
       </Typography>
-      <ScheduleTable loan={loan} />
+      <ScheduleTable loan={loan} onMarkPaid={(amount) => setRecording({ amount })} />
 
-      <Typography variant="subtitle1" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
-        Payments
-      </Typography>
+      <Stack direction="row" sx={{ alignItems: "center", justifyContent: "space-between", mt: 3, mb: 1 }}>
+        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+          Payments
+        </Typography>
+        {loan.isActive && (
+          <Button size="small" variant="contained" color="success" startIcon={<PaymentsOutlined />} onClick={() => setRecording({})}>
+            Record Payment
+          </Button>
+        )}
+      </Stack>
       {payments.isPending ? <Loading /> : <PaymentHistory payments={payments.data ?? []} onSelect={setReviewing} />}
 
       <ReviewPaymentDialog payment={reviewing} onClose={() => setReviewing(null)} />
       <ReviewRequestDialog loan={reviewRequest ? loan : null} onClose={() => setReviewRequest(false)} />
       {editing && <EditLoanDialog loan={loan} onClose={() => setEditing(false)} />}
+      {recording && <RecordPaymentDialog loan={loan} presetAmount={recording.amount} onClose={() => setRecording(null)} />}
     </Paper>
   );
 }

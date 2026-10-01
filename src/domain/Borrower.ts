@@ -22,8 +22,14 @@ export class Borrower {
     const name = input.name.trim();
     const email = input.email.trim().toLowerCase();
     if (!name) throw new Error("Name is required");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A valid email is required");
+    // Email is optional: borrowers who won't use the website can be added by name only.
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Enter a valid email, or leave it empty");
     return new Borrower({ ...input, name, email, id: "", createdAt: Date.now() });
+  }
+
+  /** False for borrowers added by the admin without an email — they can't sign in to the website. */
+  get hasEmail(): boolean {
+    return this.props.email.length > 0;
   }
 
   /** Borrower profile created automatically when a user registers; the doc id is their auth uid. */

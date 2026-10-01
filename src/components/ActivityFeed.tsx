@@ -2,7 +2,9 @@
 import AddIcon from "@mui/icons-material/Add";
 import CheckCircle from "@mui/icons-material/CheckCircle";
 import CloudUpload from "@mui/icons-material/CloudUpload";
+import DeleteOutlined from "@mui/icons-material/DeleteOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
+import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import ErrorIcon from "@mui/icons-material/Error";
 import Send from "@mui/icons-material/Send";
 import { Avatar, Box, Stack, Typography } from "@mui/material";
@@ -20,6 +22,8 @@ const ICONS: Record<ActivityType, { icon: ReactNode; bg: string; fg: string }> =
   request_rejected: { icon: <ErrorIcon />, bg: "#fee2e2", fg: "#dc2626" },
   payment_submitted: { icon: <CloudUpload />, bg: "#e0f2fe", fg: "#0284c7" },
   payment_approved: { icon: <CheckCircle />, bg: "#dcfce7", fg: "#16a34a" },
+  payment_recorded: { icon: <PaymentsOutlined />, bg: "#dcfce7", fg: "#16a34a" },
+  payment_deleted: { icon: <DeleteOutlined />, bg: "#fee2e2", fg: "#dc2626" },
   payment_rejected: { icon: <ErrorIcon />, bg: "#fee2e2", fg: "#dc2626" },
 };
 
@@ -27,6 +31,7 @@ const TAG: Partial<Record<ActivityType, "pending" | "approved" | "rejected">> = 
   payment_submitted: "pending",
   loan_requested: "pending",
   payment_approved: "approved",
+  payment_recorded: "approved",
   request_approved: "approved",
   payment_rejected: "rejected",
   request_rejected: "rejected",

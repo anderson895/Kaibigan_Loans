@@ -1,6 +1,8 @@
 "use client";
 import {
   Box,
+  Button,
+  Chip,
   Link as MuiLink,
   Stack,
   Table,
@@ -49,8 +51,10 @@ export function LoanSummary({ loan }: { loan: Loan }) {
   );
 }
 
-export function ScheduleTable({ loan }: { loan: Loan }) {
+/** `onMarkPaid` (admin only) adds a button to record the remaining amount of an unpaid installment. */
+export function ScheduleTable({ loan, onMarkPaid }: { loan: Loan; onMarkPaid?: (amount: number) => void }) {
   const now = today();
+  const canMark = !!onMarkPaid && loan.isActive;
   return (
     <TableContainer>
       <Table size="small">
@@ -60,10 +64,11 @@ export function ScheduleTable({ loan }: { loan: Loan }) {
             <TableCell>Amount Due</TableCell>
             <TableCell>Status</TableCell>
             <TableCell>Paid Date</TableCell>
+            {canMark && <TableCell align="right" />}
           </TableRow>
         </TableHead>
         <TableBody>
-          {loan.schedule.map((item) => (
+          {loan.schedule.map((item, index) => (
             <TableRow key={item.dueDate}>
               <TableCell>{formatDate(item.dueDate)}</TableCell>
               <TableCell>{formatPeso(item.amountDue)}</TableCell>
@@ -75,6 +80,15 @@ export function ScheduleTable({ loan }: { loan: Loan }) {
                 )}
               </TableCell>
               <TableCell>{formatDate(item.paidDate)}</TableCell>
+              {canMark && (
+                <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                  {item.status !== "paid" && (
+                    <Button size="small" onClick={() => onMarkPaid?.(loan.remainingFor(index))}>
+                      Mark paid{item.status === "partial" ? ` (${formatPeso(loan.remainingFor(index))})` : ""}
+                    </Button>
+                  )}
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>
@@ -87,7 +101,7 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
   if (!payments.length) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-        No payments uploaded yet.
+        No payments yet.
       </Typography>
     );
   }
@@ -112,7 +126,12 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
               sx={{ cursor: onSelect ? "pointer" : undefined }}
             >
               <TableCell>{formatDate(p.paidOn)}</TableCell>
-              <TableCell>{formatPeso(p.amount)}</TableCell>
+              <TableCell>
+                {formatPeso(p.amount)}
+                <Typography variant="caption" color="text.secondary" component="div">
+                  {p.methodLabel}
+                </Typography>
+              </TableCell>
               <TableCell>{p.referenceNo || "-"}</TableCell>
               <TableCell>
                 <StatusChip status={p.status} />
@@ -123,9 +142,13 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
                 )}
               </TableCell>
               <TableCell>
-                <MuiLink href={p.receiptUrl} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>
-                  View
-                </MuiLink>
+                {p.receiptUrl ? (
+                  <MuiLink href={p.receiptUrl} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>
+                    View
+                  </MuiLink>
+                ) : (
+                  <Chip size="small" label={p.methodLabel} />
+                )}
               </TableCell>
             </TableRow>
           ))}

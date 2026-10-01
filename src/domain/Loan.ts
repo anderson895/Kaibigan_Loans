@@ -199,13 +199,38 @@ export class Loan {
     return this.props.schedule.some((s) => s.status !== "paid" && s.dueDate < today) ? "overdue" : "ongoing";
   }
 
+  /** How much is still owed on installment `index` (0 when it is fully paid). */
+  remainingFor(index: number): number {
+    const item = this.props.schedule[index];
+    if (!item) return 0;
+    const dueBefore = this.props.schedule.slice(0, index).reduce((sum, s) => sum + s.amountDue, 0);
+    const coveredHere = Math.min(item.amountDue, Math.max(0, this.props.amountPaid - dueBefore));
+    return roundMoney(item.amountDue - coveredHere);
+  }
+
   /** Returns a new Loan with the payment applied to the balance and schedule (oldest installment first). */
   applyPayment(amount: number, paidOn: IsoDate): Loan {
     if (!this.isActive) throw new Error("Payments can only be applied to active loans");
     if (!(amount > 0)) throw new Error("Payment amount must be greater than zero");
-    const amountPaid = roundMoney(this.props.amountPaid + amount);
-    const balance = roundMoney(Math.max(0, this.props.totalAmount - amountPaid));
+    return this.withAmountPaid(roundMoney(this.props.amountPaid + amount), paidOn);
+  }
 
+  /**
+   * Undoes a payment that was applied earlier (e.g. the admin recorded a wrong amount):
+   * the balance goes back up and installments it had covered become unpaid/partial again.
+   */
+  removePayment(amount: number): Loan {
+    if (this.props.status === "pending" || this.props.status === "rejected") {
+      throw new Error("This loan has no payments to remove.");
+    }
+    if (!(amount > 0)) throw new Error("Payment amount must be greater than zero");
+    if (amount > this.props.amountPaid + 0.001) throw new Error("Cannot remove more than what was paid on this loan.");
+    return this.withAmountPaid(roundMoney(Math.max(0, this.props.amountPaid - amount)), null);
+  }
+
+  /** Recomputes balance, status and the schedule for a new total paid amount. */
+  private withAmountPaid(amountPaid: number, paidOn: IsoDate | null): Loan {
+    const balance = roundMoney(Math.max(0, this.props.totalAmount - amountPaid));
     let covered = amountPaid;
     const schedule = this.props.schedule.map((item) => {
       if (covered >= item.amountDue - 0.001) {
@@ -216,7 +241,6 @@ export class Loan {
       covered = 0;
       return { ...item, status, paidDate: null };
     });
-
     return new Loan({ ...this.props, amountPaid, balance, schedule, status: balance <= 0 ? "paid" : "ongoing" });
   }
 

@@ -4,7 +4,7 @@ import type { Borrower, BorrowerInput } from "@/domain/Borrower";
 import type { Loan } from "@/domain/Loan";
 import { useAuth } from "@/components/AuthProvider";
 import type { LoanTermsInput } from "@/services/LoanService";
-import type { SubmitPaymentInput } from "@/services/PaymentService";
+import type { RecordPaymentInput, SubmitPaymentInput } from "@/services/PaymentService";
 import { authService, lenderContactService, loanService, paymentService } from "@/services/container";
 
 export const keys = {
@@ -87,7 +87,8 @@ export function useUpdateBorrower() {
   return useMutation({
     mutationFn: ({ borrower, changes }: { borrower: Borrower; changes: Partial<BorrowerInput> }) =>
       loanService.updateBorrower(borrower, changes),
-    onSuccess: () => invalidate(keys.borrowers),
+    // Name/email are copied onto their loans and payments, so refresh those too.
+    onSuccess: () => invalidate(keys.borrowers, keys.loans, keys.payments),
   });
 }
 
@@ -164,7 +165,10 @@ export function useUpdateLoanTerms() {
 
 export function useDeleteLoan() {
   const invalidate = useInvalidate();
-  return useMutation({ mutationFn: (id: string) => loanService.deleteLoan(id), onSuccess: () => invalidate(keys.loans) });
+  return useMutation({
+    mutationFn: (id: string) => loanService.deleteLoan(id),
+    onSuccess: () => invalidate(keys.loans, keys.payments, keys.activity),
+  });
 }
 
 export function useSubmitPayment() {
@@ -172,6 +176,26 @@ export function useSubmitPayment() {
   return useMutation({
     mutationFn: (input: SubmitPaymentInput) => paymentService.submit(input),
     onSuccess: () => invalidate(keys.payments, keys.activity),
+  });
+}
+
+/** Admin records a payment received in person or checked in GCash/bank — counts immediately. */
+export function useRecordPayment() {
+  const { email } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (input: RecordPaymentInput) => paymentService.record(input, email),
+    onSuccess: () => invalidate(keys.payments, keys.loans, keys.activity),
+  });
+}
+
+/** Admin deletes a payment; approved amounts are added back to the balance. */
+export function useDeletePayment() {
+  const { email } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (paymentId: string) => paymentService.remove(paymentId, email),
+    onSuccess: () => invalidate(keys.payments, keys.loans, keys.activity),
   });
 }
 

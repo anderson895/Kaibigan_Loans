@@ -1,4 +1,5 @@
 "use client";
+import PaymentsOutlined from "@mui/icons-material/PaymentsOutlined";
 import WarningAmber from "@mui/icons-material/WarningAmber";
 import {
   Avatar,
@@ -13,9 +14,10 @@ import {
   TableRow,
   Tabs,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import { useState } from "react";
-import { ReviewPaymentDialog } from "@/components/PaymentDialogs";
+import { RecordPaymentDialog, ReviewPaymentDialog } from "@/components/PaymentDialogs";
 import { EmptyState, ErrorAlert, Loading, NameCell, PageHeader, StatusChip } from "@/components/ui";
 import { formatDate } from "@/domain/dates";
 import { formatPeso } from "@/domain/money";
@@ -26,12 +28,21 @@ export default function PaymentsPage() {
   const { data = [], isPending, error } = usePayments();
   const [tab, setTab] = useState<PaymentStatus>("pending");
   const [reviewing, setReviewing] = useState<Payment | null>(null);
+  const [recording, setRecording] = useState(false);
   const rows = data.filter((p) => p.status === tab);
   const count = (s: PaymentStatus) => data.filter((p) => p.status === s).length;
 
   return (
     <>
-      <PageHeader title="Payments" subtitle="Approve uploaded payments. Approved amounts are deducted from the balance automatically." />
+      <PageHeader
+        title="Payments"
+        subtitle="Approve uploaded payments, or record payments you received (cash, GCash) yourself."
+        action={
+          <Button variant="contained" color="success" startIcon={<PaymentsOutlined />} onClick={() => setRecording(true)}>
+            Record Payment
+          </Button>
+        }
+      />
       <Paper sx={{ p: 2.5 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab value="pending" label={`Pending (${count("pending")})`} />
@@ -62,12 +73,23 @@ export default function PaymentsPage() {
                 {rows.map((p) => (
                   <TableRow key={p.id} hover onClick={() => setReviewing(p)} sx={{ cursor: "pointer" }}>
                     <TableCell>
-                      <Avatar variant="rounded" src={p.receiptUrl} sx={{ width: 44, height: 44 }} />
+                      {p.receiptUrl ? (
+                        <Avatar variant="rounded" src={p.receiptUrl} sx={{ width: 44, height: 44 }} />
+                      ) : (
+                        <Avatar variant="rounded" sx={{ width: 44, height: 44, bgcolor: "#dcfce7", color: "#16a34a" }}>
+                          <PaymentsOutlined />
+                        </Avatar>
+                      )}
                     </TableCell>
                     <TableCell>
                       <NameCell name={p.borrowerName} sub={p.borrowerEmail} />
                     </TableCell>
-                    <TableCell>{formatPeso(p.amount)}</TableCell>
+                    <TableCell>
+                      {formatPeso(p.amount)}
+                      <Typography variant="caption" color="text.secondary" component="div">
+                        {p.methodLabel}
+                      </Typography>
+                    </TableCell>
                     <TableCell>
                       {p.ocr?.amount != null ? formatPeso(p.ocr.amount) : "-"}
                       {p.hasOcrMismatch && (
@@ -94,6 +116,7 @@ export default function PaymentsPage() {
         )}
       </Paper>
       <ReviewPaymentDialog payment={reviewing} onClose={() => setReviewing(null)} />
+      {recording && <RecordPaymentDialog onClose={() => setRecording(false)} />}
     </>
   );
 }

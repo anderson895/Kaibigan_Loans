@@ -1,7 +1,7 @@
 import { writeBatch, type Firestore } from "firebase/firestore";
 import { Borrower, type BorrowerInput } from "@/domain/Borrower";
 import { Loan, type NewLoanInput } from "@/domain/Loan";
-import type { ActivityRepository, ActivityType, BorrowerRepository, LoanRepository } from "@/data/repositories";
+import type { ActivityRepository, ActivityType, BorrowerRepository, LoanRepository, PaymentRepository } from "@/data/repositories";
 import { today } from "@/domain/dates";
 import type { UploadService } from "./UploadService";
 
@@ -14,6 +14,7 @@ export class LoanService {
     private readonly borrowers: BorrowerRepository,
     private readonly activity: ActivityRepository,
     private readonly uploads: UploadService,
+    private readonly payments: PaymentRepository,
   ) {}
 
   // ---- Borrowers ----
@@ -37,18 +38,42 @@ export class LoanService {
 
   async createBorrower(input: BorrowerInput): Promise<string> {
     const borrower = Borrower.create(input);
-    if (await this.borrowers.findByEmail(borrower.email)) throw new Error("A borrower with this email already exists.");
+    // Only check duplicates by email when there is one (borrowers can be added by name only).
+    if (borrower.hasEmail && (await this.borrowers.findByEmail(borrower.email))) {
+      throw new Error("A borrower with this email already exists.");
+    }
     return this.borrowers.create(borrower);
   }
 
+  /**
+   * Saves the borrower and, when the name or email changed, copies them onto their loans and payments.
+   * Those copies decide who can see a loan, so adding an email to a borrower who was added by name
+   * lets them see their existing loans once they register with that email.
+   */
   async updateBorrower(borrower: Borrower, changes: Partial<BorrowerInput>): Promise<void> {
-    await this.borrowers.save(borrower.id, borrower.update(changes));
+    const updated = borrower.update(changes);
+    if (updated.hasEmail && updated.email !== borrower.email) {
+      const existing = await this.borrowers.findByEmail(updated.email);
+      if (existing && existing.id !== borrower.id) {
+        throw new Error("Another borrower already uses this email (they may have registered already).");
+      }
+    }
+
+    const identityChanged = updated.email !== borrower.email || updated.name !== borrower.name;
+    const linked = identityChanged
+      ? (await Promise.all([this.loans.refsWhere("borrowerId", borrower.id), this.payments.refsWhere("borrowerId", borrower.id)])).flat()
+      : [];
+
+    const batch = writeBatch(this.db);
+    batch.set(this.borrowers.docRef(borrower.id), this.borrowers.toData(updated));
+    linked.forEach((ref) => batch.update(ref, { borrowerEmail: updated.email, borrowerName: updated.name }));
+    await batch.commit();
   }
 
   async deleteBorrower(id: string): Promise<void> {
     const borrower = await this.borrowers.get(id);
     if (!borrower) return;
-    const loans = await this.loans.listByEmail(borrower.email);
+    const loans = await this.loans.listByBorrower(borrower.id);
     if (loans.some((l) => l.isActive || l.isRequest)) throw new Error("This borrower still has an active loan.");
     await this.borrowers.delete(id);
   }
@@ -155,8 +180,19 @@ export class LoanService {
     await batch.commit();
   }
 
+  /** Deletes a loan together with its payments and activity entries, so nothing is left orphaned. */
   async deleteLoan(id: string): Promise<void> {
-    await this.loans.delete(id);
+    const [paymentRefs, activityRefs] = await Promise.all([
+      this.payments.refsWhere("loanId", id),
+      this.activity.refsWhere("loanId", id),
+    ]);
+    const refs = [...paymentRefs, ...activityRefs, this.loans.docRef(id)];
+    // Firestore batches hold up to 500 writes; the loan itself goes in the last batch.
+    for (let i = 0; i < refs.length; i += 450) {
+      const batch = writeBatch(this.db);
+      refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      await batch.commit();
+    }
   }
 
   recentActivity(count?: number) {

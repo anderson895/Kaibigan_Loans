@@ -13,6 +13,7 @@ import {
   type DocumentSnapshot,
   type Firestore,
   type QueryConstraint,
+  where,
 } from "firebase/firestore";
 
 /** Generic Firestore repository that maps documents to domain entities and back. */
@@ -55,6 +56,12 @@ export abstract class BaseRepository<TEntity, TProps extends { id: string }> {
   async list(...constraints: QueryConstraint[]): Promise<TEntity[]> {
     const snapshot = await getDocs(query(this.collectionRef, ...constraints));
     return snapshot.docs.map((d) => this.fromSnapshot(d)!);
+  }
+
+  /** References of all documents where `field == value` (e.g. every payment of one loan). */
+  async refsWhere(field: string, value: string): Promise<DocumentReference<DocumentData>[]> {
+    const snapshot = await getDocs(query(this.collectionRef, where(field, "==", value)));
+    return snapshot.docs.map((d) => d.ref);
   }
 
   async create(entity: TEntity): Promise<string> {

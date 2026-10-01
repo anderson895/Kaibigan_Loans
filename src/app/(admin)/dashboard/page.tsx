@@ -51,7 +51,7 @@ export default function DashboardPage() {
         <StatCard
           icon={<GroupOutlined />}
           label="Total Borrowers"
-          value={String(new Set(active.map((l) => l.borrowerEmail)).size)}
+          value={String(new Set(active.map((l) => l.borrowerId)).size)}
           caption="Active borrowers"
         />
         <StatCard

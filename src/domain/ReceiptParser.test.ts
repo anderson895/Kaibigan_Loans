@@ -75,4 +75,38 @@ describe("Payment", () => {
   it("rejects with a reason", () => {
     expect(Payment.submit(input).reject("  Malabo ang resibo ").rejectReason).toBe("Malabo ang resibo");
   });
+
+  it("borrower uploads are marked as uploads", () => {
+    const payment = Payment.submit(input);
+    expect(payment).toMatchObject({ method: "upload", isManual: false, recordedBy: "" });
+  });
+
+  it("admin-recorded cash payments count immediately and need no receipt", () => {
+    const payment = Payment.record({
+      loanId: "l1",
+      borrowerId: "b1",
+      borrowerName: "Anna",
+      borrowerEmail: "",
+      amount: 600,
+      paidOn: "2026-10-08",
+      method: "cash",
+      recordedBy: "admin@gmail.com",
+      note: "  Inabot sa bahay ",
+    });
+    expect(payment).toMatchObject({
+      status: "approved",
+      isApproved: true,
+      isManual: true,
+      methodLabel: "Cash",
+      receiptUrl: "",
+      note: "Inabot sa bahay",
+    });
+    expect(payment.reviewedAt).not.toBeNull();
+    expect(() => payment.approve()).toThrow();
+  });
+
+  it("old payments without a method load as uploads", () => {
+    const { method: _m, recordedBy: _r, note: _n, ...legacy } = Payment.submit(input).toProps();
+    expect(Payment.fromProps(legacy).method).toBe("upload");
+  });
 });

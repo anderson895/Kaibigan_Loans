@@ -17,5 +17,5 @@ export const authService = new AuthService(auth, db);
 export const uploadService = new UploadService(authService);
 export const ocrService = new OcrService();
 export const lenderContactService = new LenderContactService(db);
-export const loanService = new LoanService(db, loanRepo, borrowerRepo, activityRepo, uploadService);
+export const loanService = new LoanService(db, loanRepo, borrowerRepo, activityRepo, uploadService, paymentRepo);
 export const paymentService = new PaymentService(db, paymentRepo, loanRepo, activityRepo, uploadService);

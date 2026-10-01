@@ -68,9 +68,9 @@ export function NewLoanDialog({
             options={borrowers}
             value={borrower}
             onChange={(_, v) => setBorrower(v)}
-            getOptionLabel={(b) => `${b.name} (${b.email})`}
+            getOptionLabel={(b) => `${b.name} (${b.hasEmail ? b.email : "no website account"})`}
             isOptionEqualToValue={(a, b) => a.id === b.id}
-            noOptionsText="No borrowers yet. Ask them to register and verify their email, then open the site once."
+            noOptionsText="No borrowers yet. Add one in Borrowers → Add Borrower, or ask them to register."
             renderInput={(params) => (
               <TextField {...params} label="Borrower" required helperText="Not on the list? They need to register first." />
             )}

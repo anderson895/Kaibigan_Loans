@@ -29,12 +29,11 @@ export function BorrowerDialog({ open, borrower, onClose }: { open: boolean; bor
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField label="Name" required value={values.name} onChange={set("name")} />
           <TextField
-            label="Login email"
-            required
+            label="Email (optional)"
             type="email"
             value={values.email}
             onChange={set("email")}
-            helperText="The email they sign in with"
+            helperText="Only if they will log in to see their loan. Leave empty for borrowers who won't use the website."
           />
           <TextField label="Phone / Messenger" value={values.phone} onChange={set("phone")} />
           <TextField
