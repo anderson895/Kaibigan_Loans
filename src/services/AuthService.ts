@@ -4,7 +4,7 @@ import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onAuthStateChanged,
-  sendEmailVerification,
+  applyActionCode,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
@@ -31,6 +31,8 @@ const AUTH_ERRORS: Record<string, string> = {
   "auth/network-request-failed": "No internet connection. Please try again.",
   "auth/operation-not-allowed": "Email/Password login is not enabled in Firebase yet.",
   "auth/unauthorized-domain": "This domain is not authorized in Firebase yet.",
+  "auth/invalid-action-code": "This verification link is invalid or was already used. Request a new one.",
+  "auth/expired-action-code": "This verification link has expired. Request a new one.",
 };
 
 /** Turns Firebase auth errors into friendly Taglish messages. */
@@ -75,8 +77,27 @@ export class AuthService {
     if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
     const { user } = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
     await updateProfile(user, { displayName: name.trim() });
-    await sendEmailVerification(user);
+    // Display name must be in the ID token so the email can greet the user by name.
+    await user.getIdToken(true);
+    await this.sendVerificationEmail();
     return user;
+  }
+
+  /** Our own mailer (Nodemailer + Gmail SMTP on the server), not Firebase's built-in email. */
+  private async sendVerificationEmail(): Promise<void> {
+    const res = await fetch("/api/send-verification", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${await this.idToken()}` },
+    });
+    if (!res.ok) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(data.error ?? `Could not send the verification email (${res.status}).`);
+    }
+  }
+
+  /** Applies the code from our /verify-email link (sent by our own mailer). */
+  verifyEmail(oobCode: string): Promise<void> {
+    return applyActionCode(this.auth, oobCode);
   }
 
   sendPasswordReset(email: string) {
@@ -84,7 +105,7 @@ export class AuthService {
   }
 
   async resendVerification(): Promise<void> {
-    if (this.auth.currentUser) await sendEmailVerification(this.auth.currentUser);
+    if (this.auth.currentUser) await this.sendVerificationEmail();
   }
 
   /** Reloads the user after they click the verification link, and refreshes the token's email_verified claim. */

@@ -4,6 +4,8 @@
   "name": "kaibigan-loans",
   "pages_build_output_dir": "./out",
   "compatibility_date": "2026-09-01",
+  // Nodemailer (Gmail SMTP) needs Node's net/tls modules.
+  "compatibility_flags": ["nodejs_compat"],
   // Public values used by functions/api/upload-signature.ts. The Cloudinary API key and secret are
   // Pages secrets (npx wrangler pages secret put ... --project-name kaibigan-loans), never stored here.
   "vars": {

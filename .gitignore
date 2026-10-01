@@ -12,3 +12,6 @@ next-env.d.ts
 api_credentials.txt
 firestore-debug.log
 *-debug.log
+
+# Service account keys (never commit)
+*service-account*.json

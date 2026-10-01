@@ -22,7 +22,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/services/AuthService";
 import { authService } from "@/services/container";
 import { useAuth } from "./AuthProvider";
@@ -289,36 +289,50 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
 /** Shown after sign-up (or to any unverified email account) until the email link is clicked. */
 export function VerifyEmailPanel() {
   const { user, reloadUser } = useAuth();
-  const { busy, error, notice, run, setError } = useAction();
+  const { busy, error, notice, run } = useAction();
+
+  // No "I've verified" button: verification happens through the emailed link. This tab checks on its
+  // own (every few seconds and whenever it regains focus) and moves on once the email is verified.
+  useEffect(() => {
+    let stopped = false;
+    const check = () => {
+      if (!stopped && document.visibilityState === "visible") reloadUser().catch(() => undefined);
+    };
+    const timer = window.setInterval(check, 4000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [reloadUser]);
 
   return (
     <Stack spacing={2.5} sx={{ textAlign: "center", alignItems: "center" }}>
       <Avatar sx={{ width: 64, height: 64, bgcolor: "#e3ecfd", color: "primary.main" }}>
         <MarkEmailReadOutlined fontSize="large" />
       </Avatar>
-      <Heading title="Verify your Email" subtitle="Just one more step!" />
+      <Heading title="Check your Gmail" subtitle="Just one more step!" />
       <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-        We sent a verification link to <strong>{user?.email}</strong>. Open the email and click the link, then come back
-        here and click <strong>I've verified</strong>.
+        We sent a verification link to <strong>{user?.email}</strong>. Open the email and click <strong>Verify Email</strong>
+        — you&apos;ll be signed in automatically.
       </Typography>
+      <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", color: "text.secondary" }}>
+        <CircularProgress size={18} />
+        <Typography variant="body2">Waiting for verification...</Typography>
+      </Stack>
       <Box sx={{ width: "100%" }}>
         <Messages error={error} notice={notice} />
       </Box>
       <Button
         fullWidth
-        variant="contained"
-        size="large"
+        variant="outlined"
         disabled={busy}
-        sx={pill}
-        onClick={() =>
-          run(async () => {
-            if (!(await reloadUser())) setError("Not verified yet. Click the link in the email first (check Spam too).");
-          })
-        }
+        sx={{ ...pill, borderWidth: 1.5 }}
+        onClick={() => run(() => authService.resendVerification(), "Verification email sent again. Check your inbox and Spam.")}
       >
-        I've verified
-      </Button>
-      <Button fullWidth variant="outlined" disabled={busy} sx={{ ...pill, borderWidth: 1.5 }} onClick={() => run(() => authService.resendVerification(), "Verification email sent again.")}>
         Resend link
       </Button>
       <Button onClick={() => authService.signOut()}>Use another account</Button>

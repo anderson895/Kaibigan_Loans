@@ -1,6 +1,6 @@
 "use client";
 import type { User } from "firebase/auth";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Role } from "@/services/AuthService";
 import { authService, loanService } from "@/services/container";
 
@@ -52,11 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) setRole(await authService.resolveRole(user));
   };
 
-  const reloadUser = async () => {
+  const reloadUser = useCallback(async () => {
     const next = await authService.reloadUser();
-    await resolve(next);
+    // Only re-resolve (role, borrower profile) when something actually changed.
+    if (next?.emailVerified) await resolve(next);
     return !!next?.emailVerified;
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, email: user?.email?.toLowerCase() ?? "", role, loading, verified, refreshRole, reloadUser }}>
