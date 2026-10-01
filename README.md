@@ -186,16 +186,28 @@ Live: **https://kaibigan-loans.pages.dev**
 | Build output directory | `out` |
 | Production branch | `main` |
 
-**Secrets (isang beses lang):**
-```bash
-npx wrangler pages secret put CLOUDINARY_API_KEY --project-name kaibigan-loans
-npx wrangler pages secret put CLOUDINARY_API_SECRET --project-name kaibigan-loans
-```
-Ang `FIREBASE_PROJECT_ID` at `CLOUDINARY_CLOUD_NAME` ay nasa `vars` ng `wrangler.jsonc`. Ang `NEXT_PUBLIC_*` para sa browser ay nasa `.env.production`.
+**Secrets (isang beses lang)** — `npx wrangler pages secret put <NAME> --project-name kaibigan-loans`:
+| Secret | Para saan |
+|---|---|
+| `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Pag-upload ng resibo at proof of send |
+| `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY` | Service account: paggawa ng verification at password-reset links |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Pagpapadala ng account emails mula sa Gmail (App Password) |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile (bot check) |
+
+Ang `FIREBASE_PROJECT_ID` at `CLOUDINARY_CLOUD_NAME` ay nasa `vars` ng `wrangler.jsonc`. Ang `NEXT_PUBLIC_*` para sa browser (kasama ang `NEXT_PUBLIC_TURNSTILE_SITE_KEY`) ay nasa `.env.production`.
+
+> Kapag binago ang isang secret, magkakabisa ito sa **susunod na deploy** (push o Retry deployment).
+
+**Account emails (verification at forgot password):**
+- Sariling template at sariling pages (`/verify-email`, `/reset-password`); hindi Firebase ang nagpapadala. Gumagawa lang ang Firebase ng action code gamit ang service account (`src/server/firebaseAdmin.ts`).
+- Pagpapadala sa **Gmail SMTP**: sa Cloudflare, gamit ang native sockets (`worker-mailer`, `src/server/mail-worker.ts`); sa `npm run dev`, gamit ang **Nodemailer** (`src/server/mail-node.ts`). Hindi gumagana ang Nodemailer sa Pages Functions dahil walang Node `net`/`tls` doon.
+- Ang forgot password ay laging sumasagot ng "sent" (kahit walang account) para hindi malaman ng iba kung sino ang may account.
+
+**Cloudflare Turnstile:** widget na "Kaibigan Loans" (domains: `kaibigan-loans.pages.dev`, `localhost`). Sa sign up, resend link at forgot password, vine-verify ito **sa server** bago magpadala ng email. Sa login, sa browser lang ito chine-check, dahil diretso sa Firebase ang login.
 
 **Firebase:** idagdag ang `kaibigan-loans.pages.dev` sa **Authentication → Settings → Authorized domains**.
 
-**Local na test ng production build:** `npm run preview`. Kailangan ng `.dev.vars` na may `CLOUDINARY_API_KEY` at `CLOUDINARY_API_SECRET` (naka-gitignore).
+**Local na test ng production build:** `npm run preview`. Kailangan ng `.dev.vars` (naka-gitignore) na may parehong secrets sa itaas.
 
 ## Architecture at Project Structure
 
@@ -303,7 +315,7 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
 
 ## Security
 
-- **Login:** Google Sign-in, o email + password (may Remember me at Forgot password). Ang email/password accounts ay kailangang **i-verify ang email** bago makapasok, para walang makagamit ng email ng ibang tao para makita ang loan nito.
+- **Login:** Google Sign-in, o email + password (may Remember me at Forgot password). May Cloudflare Turnstile ang login, sign up at forgot password. Ang email/password accounts ay kailangang **i-verify ang email** bago makapasok, para walang makagamit ng email ng ibang tao para makita ang loan nito.
 - **Firestore rules** (`firestore.rules`) ang tunay na proteksyon. Ang client-side route guard ay para lang sa UX.
   - Nababasa lang ng borrower ang `loans`, `payments` at `borrowers` na tugma sa **sariling email** niya.
   - Ang kaya lang gawin ng borrower: gumawa ng `pending` na payment para sa *sarili niyang aktibong* loan, at `pending` na loan request (walang tubo, max ₱100,000).

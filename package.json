@@ -27,7 +27,8 @@
     "nodemailer": "^10.0.13",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "worker-mailer": "^1.2.1"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^5.0.2",

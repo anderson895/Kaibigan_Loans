@@ -22,11 +22,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { authErrorMessage, MIN_PASSWORD_LENGTH } from "@/services/AuthService";
 import { authService } from "@/services/container";
 import { useAuth } from "./AuthProvider";
 import { TermsDialog } from "./TermsDialog";
+import { Turnstile, turnstileEnabled, type TurnstileHandle } from "./Turnstile";
 
 /** Runs an async action with a busy flag and a friendly error message. */
 function useAction() {
@@ -50,6 +51,24 @@ function useAction() {
 }
 
 const pill = { borderRadius: 99, py: 1.4, fontSize: 16 };
+
+/**
+ * Cloudflare Turnstile state for one form. `ready` is true once the check passed (or when Turnstile
+ * is not configured). Tokens are single-use, so call `reset` after every attempt.
+ */
+function useHumanCheck() {
+  const ref = useRef<TurnstileHandle>(null);
+  const [token, setToken] = useState<string | null>(null);
+  return {
+    ref,
+    token,
+    setToken,
+    ready: !turnstileEnabled || !!token,
+    reset: () => ref.current?.reset(),
+  };
+}
+
+const NOT_HUMAN_YET = "Please complete the security check first.";
 
 function Heading({ title, subtitle }: { title: string; subtitle: string }) {
   return (
@@ -82,7 +101,7 @@ function Field({ label, icon, ...props }: { label: string; icon: ReactNode } & R
   );
 }
 
-function PasswordField({ label, value, onChange, autoComplete }: { label: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
+export function PasswordField({ label, value, onChange, autoComplete }: { label: string; value: string; onChange: (v: string) => void; autoComplete: string }) {
   const [show, setShow] = useState(false);
   return (
     <Field
@@ -149,10 +168,12 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(true);
   const [termsOpen, setTermsOpen] = useState(false);
+  const human = useHumanCheck();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    run(() => authService.signInWithEmail(email, password, remember));
+    if (!human.ready) return setError(NOT_HUMAN_YET);
+    run(() => authService.signInWithEmail(email, password, remember).finally(human.reset));
   };
 
   return (
@@ -175,12 +196,13 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
           Forgot password?
         </MuiLink>
       </Stack>
+      <Turnstile ref={human.ref} onToken={human.setToken} action="login" />
       <Messages error={error} notice={notice} />
       <Button
         type="submit"
         variant="contained"
         size="large"
-        disabled={busy || !email || !password}
+        disabled={busy || !human.ready || !email || !password}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <PersonOutlined />}
         sx={pill}
       >
@@ -214,13 +236,15 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
   const [confirm, setConfirm] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const human = useHumanCheck();
   const mismatch = confirm.length > 0 && confirm !== password;
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!agreed) return setError("Please accept the Terms and Conditions to continue.");
     if (mismatch) return setError("Passwords do not match.");
-    run(() => authService.register(name, email, password));
+    if (!human.ready) return setError(NOT_HUMAN_YET);
+    run(() => authService.register(name, email, password, human.token).finally(human.reset));
   };
 
   return (
@@ -275,12 +299,13 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
           </Typography>
         }
       />
+      <Turnstile ref={human.ref} onToken={human.setToken} action="signup" />
       <Messages error={error} notice={notice} />
       <Button
         type="submit"
         variant="contained"
         size="large"
-        disabled={busy || !agreed || !name || !email || password.length < MIN_PASSWORD_LENGTH || mismatch || !confirm}
+        disabled={busy || !agreed || !human.ready || !name || !email || password.length < MIN_PASSWORD_LENGTH || mismatch || !confirm}
         startIcon={busy ? <CircularProgress size={18} color="inherit" /> : <PersonOutlined />}
         sx={pill}
       >
@@ -305,14 +330,16 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
 }
 
 export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: string; onBack: () => void }) {
-  const { busy, error, notice, run } = useAction();
+  const { busy, error, notice, run, setError } = useAction();
   const [email, setEmail] = useState(initialEmail);
+  const human = useHumanCheck();
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    if (!human.ready) return setError(NOT_HUMAN_YET);
     run(
-      () => authService.sendPasswordReset(email),
-      "If an account exists for this email, we sent a password reset link. Check your inbox (and Spam).",
+      () => authService.sendPasswordReset(email, human.token).finally(human.reset),
+      "If an account exists for this email, we sent a password reset link from Kaibigan Loans. Check your inbox (and Spam).",
     );
   };
 
@@ -329,8 +356,9 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
         autoComplete="email"
         required
       />
+      <Turnstile ref={human.ref} onToken={human.setToken} action="forgot_password" />
       <Messages error={error} notice={notice} />
-      <Button type="submit" variant="contained" size="large" disabled={busy || !email} sx={pill}>
+      <Button type="submit" variant="contained" size="large" disabled={busy || !human.ready || !email} sx={pill}>
         {busy ? "Sending..." : "Send Reset Link"}
       </Button>
       <Button onClick={onBack}>Back to Login</Button>
@@ -342,6 +370,7 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
 export function VerifyEmailPanel() {
   const { user, reloadUser } = useAuth();
   const { busy, error, notice, run } = useAction();
+  const human = useHumanCheck();
 
   // No "I've verified" button: verification happens through the emailed link. This tab checks on its
   // own (every few seconds and whenever it regains focus) and moves on once the email is verified.
@@ -378,12 +407,18 @@ export function VerifyEmailPanel() {
       <Box sx={{ width: "100%" }}>
         <Messages error={error} notice={notice} />
       </Box>
+      <Turnstile ref={human.ref} onToken={human.setToken} action="resend_verification" />
       <Button
         fullWidth
         variant="outlined"
-        disabled={busy}
+        disabled={busy || !human.ready}
         sx={{ ...pill, borderWidth: 1.5 }}
-        onClick={() => run(() => authService.resendVerification(), "Verification email sent again. Check your inbox and Spam.")}
+        onClick={() =>
+          run(
+            () => authService.resendVerification(human.token).finally(human.reset),
+            "Verification email sent again. Check your inbox and Spam.",
+          )
+        }
       >
         Resend link
       </Button>

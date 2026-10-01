@@ -5,7 +5,8 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   applyActionCode,
-  sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -31,8 +32,8 @@ const AUTH_ERRORS: Record<string, string> = {
   "auth/network-request-failed": "No internet connection. Please try again.",
   "auth/operation-not-allowed": "Email/Password login is not enabled in Firebase yet.",
   "auth/unauthorized-domain": "This domain is not authorized in Firebase yet.",
-  "auth/invalid-action-code": "This verification link is invalid or was already used. Request a new one.",
-  "auth/expired-action-code": "This verification link has expired. Request a new one.",
+  "auth/invalid-action-code": "This link is invalid or was already used. Request a new one.",
+  "auth/expired-action-code": "This link has expired. Request a new one.",
 };
 
 /** Turns Firebase auth errors into friendly Taglish messages. */
@@ -42,6 +43,19 @@ export function authErrorMessage(e: unknown): string {
 }
 
 export const MIN_PASSWORD_LENGTH = 8;
+
+/** POSTs JSON to our own API and turns an error response into a readable Error. */
+async function postJson(url: string, body: unknown, authorization?: string): Promise<void> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(authorization ? { Authorization: authorization } : {}) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `Request failed (${res.status}). Please try again.`);
+  }
+}
 
 /**
  * Admins are stored as `admins/{email}`. The very first person to sign in (while `meta/setup`
@@ -72,27 +86,20 @@ export class AuthService {
   }
 
   /** Creates an email/password account and sends a verification link (required before data access). */
-  async register(name: string, email: string, password: string): Promise<User> {
+  async register(name: string, email: string, password: string, turnstileToken?: string | null): Promise<User> {
     if (!name.trim()) throw new Error("Name is required.");
     if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
     const { user } = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
     await updateProfile(user, { displayName: name.trim() });
     // Display name must be in the ID token so the email can greet the user by name.
     await user.getIdToken(true);
-    await this.sendVerificationEmail();
+    await this.sendVerificationEmail(turnstileToken);
     return user;
   }
 
-  /** Our own mailer (Nodemailer + Gmail SMTP on the server), not Firebase's built-in email. */
-  private async sendVerificationEmail(): Promise<void> {
-    const res = await fetch("/api/send-verification", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${await this.idToken()}` },
-    });
-    if (!res.ok) {
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
-      throw new Error(data.error ?? `Could not send the verification email (${res.status}).`);
-    }
+  /** Our own mailer (Gmail SMTP on the server), not Firebase's built-in email. */
+  private async sendVerificationEmail(turnstileToken?: string | null): Promise<void> {
+    await postJson("/api/send-verification", { turnstileToken }, `Bearer ${await this.idToken()}`);
   }
 
   /** Applies the code from our /verify-email link (sent by our own mailer). */
@@ -100,12 +107,23 @@ export class AuthService {
     return applyActionCode(this.auth, oobCode);
   }
 
-  sendPasswordReset(email: string) {
-    return sendPasswordResetEmail(this.auth, email.trim());
+  /** Emails a reset link to our own /reset-password page (sent from our Gmail, not by Firebase). */
+  async sendPasswordReset(email: string, turnstileToken?: string | null): Promise<void> {
+    await postJson("/api/send-password-reset", { email: email.trim(), turnstileToken });
   }
 
-  async resendVerification(): Promise<void> {
-    if (this.auth.currentUser) await this.sendVerificationEmail();
+  /** Checks the code from the reset link and returns the account's email. */
+  checkResetCode(oobCode: string): Promise<string> {
+    return verifyPasswordResetCode(this.auth, oobCode);
+  }
+
+  async resetPassword(oobCode: string, newPassword: string): Promise<void> {
+    if (newPassword.length < MIN_PASSWORD_LENGTH) throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
+    await confirmPasswordReset(this.auth, oobCode, newPassword);
+  }
+
+  async resendVerification(turnstileToken?: string | null): Promise<void> {
+    if (this.auth.currentUser) await this.sendVerificationEmail(turnstileToken);
   }
 
   /** Reloads the user after they click the verification link, and refreshes the token's email_verified claim. */
