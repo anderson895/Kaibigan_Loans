@@ -38,8 +38,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid token" }, { status: 401 });
   }
 
+  // Borrower payment receipts vs. the lender's proof of send.
+  const body = (await request.json().catch(() => ({}))) as { kind?: string };
+  const kind = body.kind === "disbursements" ? "disbursements" : "receipts";
+
   const timestamp = Math.floor(Date.now() / 1000);
-  const folder = `kaibigan-loans/receipts/${uid}`;
+  const folder = `kaibigan-loans/${kind}/${uid}`;
   // Cloudinary signature: sorted params joined with & + api secret, SHA-1.
   const signature = await sha1Hex(`folder=${folder}&timestamp=${timestamp}${apiSecret}`);
 

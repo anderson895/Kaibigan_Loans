@@ -34,11 +34,11 @@ export default function RequestLoanPage() {
 
   return (
     <>
-      <PageHeader title="Request Loan" subtitle="Makikita ito ng nagpautang, at siya ang magse-set ng final na terms." />
+      <PageHeader title="Request Loan" subtitle="Your lender will review it and set the final terms." />
       <Paper sx={{ p: { xs: 2, md: 3 }, maxWidth: 560 }}>
         <Stack spacing={2}>
           <TextField
-            label="Magkano ang kailangan mo?"
+            label="How much do you need?"
             type="number"
             required
             value={principal}
@@ -56,7 +56,7 @@ export default function RequestLoanPage() {
             }}
           />
           <TextField
-            label="Saan ipapadala ang pera"
+            label="Where to send the money"
             placeholder="GCash 0917 123 4567 — Juan D."
             required
             multiline
@@ -64,7 +64,7 @@ export default function RequestLoanPage() {
             value={payout}
             onChange={(e) => setPayoutDetails(e.target.value)}
           />
-          <TextField label="Para saan / notes (optional)" multiline minRows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <TextField label="Purpose / notes (optional)" multiline minRows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           <ErrorAlert error={request.error} />
           <Button
             variant="contained"

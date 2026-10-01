@@ -2,6 +2,8 @@ import { writeBatch, type Firestore } from "firebase/firestore";
 import { Borrower, type BorrowerInput } from "@/domain/Borrower";
 import { Loan, type NewLoanInput } from "@/domain/Loan";
 import type { ActivityRepository, ActivityType, BorrowerRepository, LoanRepository } from "@/data/repositories";
+import { today } from "@/domain/dates";
+import type { UploadService } from "./UploadService";
 
 export type LoanTermsInput = Pick<NewLoanInput, "principal" | "interestType" | "interestValue" | "term" | "termUnit" | "paymentPlan" | "startDate" | "notes">;
 
@@ -11,6 +13,7 @@ export class LoanService {
     private readonly loans: LoanRepository,
     private readonly borrowers: BorrowerRepository,
     private readonly activity: ActivityRepository,
+    private readonly uploads: UploadService,
   ) {}
 
   // ---- Borrowers ----
@@ -23,9 +26,18 @@ export class LoanService {
     return this.borrowers.findByEmail(email);
   }
 
+  /**
+   * Makes sure a registered (verified) user has a borrower profile, so the lender sees them in
+   * Borrowers without adding them by hand. Profiles created by the lender earlier are matched by email.
+   */
+  async ensureBorrowerFor(user: { uid: string; email: string; displayName: string | null }): Promise<void> {
+    if (await this.borrowers.findByEmail(user.email)) return;
+    await this.borrowers.save(user.uid, Borrower.forRegisteredUser(user.uid, user.displayName ?? "", user.email));
+  }
+
   async createBorrower(input: BorrowerInput): Promise<string> {
     const borrower = Borrower.create(input);
-    if (await this.borrowers.findByEmail(borrower.email)) throw new Error("May borrower na gamit ang email na ito.");
+    if (await this.borrowers.findByEmail(borrower.email)) throw new Error("A borrower with this email already exists.");
     return this.borrowers.create(borrower);
   }
 
@@ -37,7 +49,7 @@ export class LoanService {
     const borrower = await this.borrowers.get(id);
     if (!borrower) return;
     const loans = await this.loans.listByEmail(borrower.email);
-    if (loans.some((l) => l.isActive || l.isRequest)) throw new Error("May active na loan pa ang borrower na ito.");
+    if (loans.some((l) => l.isActive || l.isRequest)) throw new Error("This borrower still has an active loan.");
     await this.borrowers.delete(id);
   }
 
@@ -111,6 +123,26 @@ export class LoanService {
     const batch = writeBatch(this.db);
     batch.set(this.loans.docRef(request.id), this.loans.toData(request.rejectRequest()));
     this.logActivity(batch, "request_rejected", `Loan request of ${request.borrowerName} declined`, request.id, request.borrowerName, request.principal, actorEmail);
+    await batch.commit();
+  }
+
+  /** Lender uploads proof that the money was sent (GCash/bank screenshot); the borrower can view it. */
+  async attachDisbursement(
+    loan: Loan,
+    input: { file: File; referenceNo: string; sentOn?: string },
+    actorEmail: string,
+  ): Promise<void> {
+    const receipt = await this.uploads.uploadReceipt(input.file, "disbursements");
+    const updated = loan.withDisbursement({
+      receiptUrl: receipt.url,
+      receiptPublicId: receipt.publicId,
+      referenceNo: input.referenceNo.trim(),
+      sentOn: input.sentOn || today(),
+      uploadedAt: Date.now(),
+    });
+    const batch = writeBatch(this.db);
+    batch.update(this.loans.docRef(loan.id), { disbursement: updated.disbursement });
+    this.logActivity(batch, "loan_disbursed", `Money sent to ${loan.borrowerName}`, loan.id, loan.borrowerName, loan.principal, actorEmail);
     await batch.commit();
   }
 

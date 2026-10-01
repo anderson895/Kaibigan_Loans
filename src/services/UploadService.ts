@@ -1,5 +1,7 @@
 import type { AuthService } from "./AuthService";
 
+export type UploadKind = "receipts" | "disbursements";
+
 export interface UploadedFile {
   url: string;
   publicId: string;
@@ -19,15 +21,17 @@ export class UploadService {
 
   constructor(private readonly authService: AuthService) {}
 
-  async uploadReceipt(file: File): Promise<UploadedFile> {
-    if (!file.type.startsWith("image/")) throw new Error("Image files lang ang pwede (screenshot ng resibo).");
-    if (file.size > UploadService.MAX_BYTES) throw new Error("Masyadong malaki ang file (max 8MB).");
+  /** `kind` picks the Cloudinary folder: borrower payment receipts or the lender's proof of send. */
+  async uploadReceipt(file: File, kind: UploadKind = "receipts"): Promise<UploadedFile> {
+    if (!file.type.startsWith("image/")) throw new Error("Only image files are allowed (receipt screenshot).");
+    if (file.size > UploadService.MAX_BYTES) throw new Error("File is too large (max 8MB).");
 
     const res = await fetch("/api/upload-signature", {
       method: "POST",
-      headers: { Authorization: `Bearer ${await this.authService.idToken()}` },
+      headers: { Authorization: `Bearer ${await this.authService.idToken()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ kind }),
     });
-    if (!res.ok) throw new Error(`Hindi ma-upload (${res.status}). Subukang mag-login ulit.`);
+    if (!res.ok) throw new Error(`Upload failed (${res.status}). Try logging in again.`);
     const sig = (await res.json()) as SignatureResponse;
 
     const form = new FormData();

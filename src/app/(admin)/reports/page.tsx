@@ -42,7 +42,7 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        subtitle="Buod ng mga loan at koleksyon."
+        subtitle="Summary of loans and collections."
         action={
           <Button variant="outlined" startIcon={<Download />} onClick={() => downloadCsv(booked)} disabled={!booked.length}>
             Export CSV

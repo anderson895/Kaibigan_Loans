@@ -19,12 +19,19 @@ export class Borrower {
   static create(input: BorrowerInput): Borrower {
     const name = input.name.trim();
     const email = input.email.trim().toLowerCase();
-    if (!name) throw new Error("Kailangan ang pangalan");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Kailangan ng tamang email address");
+    if (!name) throw new Error("Name is required");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A valid email is required");
     return new Borrower({ ...input, name, email, id: "", createdAt: Date.now() });
   }
 
+  /** Borrower profile created automatically when a user registers; the doc id is their auth uid. */
+  static forRegisteredUser(uid: string, name: string, email: string): Borrower {
+    const created = Borrower.create({ name: name.trim() || email.split("@")[0], email, phone: "", payoutDetails: "" });
+    return new Borrower({ ...created.toProps(), id: uid });
+  }
+
   get id() { return this.props.id; }
+  get createdAt() { return this.props.createdAt; }
   get name() { return this.props.name; }
   get email() { return this.props.email; }
   get phone() { return this.props.phone; }

@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
+import { DisbursementSection } from "@/components/DisbursementPanel";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
 import { NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
 import { LoansTable } from "@/components/LoansTable";
@@ -42,7 +43,7 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const [reviewRequest, setReviewRequest] = useState(false);
 
   const remove = () => {
-    if (confirm(`Burahin ang loan ni ${loan.borrowerName}? Hindi na ito maibabalik.`)) {
+    if (confirm(`Delete ${loan.borrowerName}'s loan? This cannot be undone.`)) {
       deleteLoan.mutate(loan.id, { onSuccess: onClose });
     }
   };
@@ -69,11 +70,12 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
       <LoanSummary loan={loan} />
       {(loan.payoutDetails || loan.notes) && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
-          {loan.payoutDetails && <>Ipadala sa: {loan.payoutDetails}<br /></>}
+          {loan.payoutDetails && <>Send to: {loan.payoutDetails}<br /></>}
           {loan.notes && <>Notes: {loan.notes}</>}
         </Typography>
       )}
       <ErrorAlert error={deleteLoan.error} />
+      <DisbursementSection loan={loan} canEdit />
 
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
         Payment Schedule
@@ -117,7 +119,7 @@ function LoansView() {
     <>
       <PageHeader
         title="Loan List"
-        subtitle="I-manage ang lahat ng loans at i-track ang mga payment."
+        subtitle="Manage all your loans and track payments."
         action={
           <Button variant="contained" startIcon={<Add />} onClick={() => setNewOpen(true)}>
             New Loan
@@ -129,7 +131,7 @@ function LoansView() {
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
             <TextField
               size="small"
-              placeholder="Hanapin ang pangalan..."
+              placeholder="Search by name..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               sx={{ flexGrow: 1 }}

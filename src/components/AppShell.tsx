@@ -44,7 +44,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: <DashboardOutlined /> },
   { href: "/loans", label: "Loans", icon: <ReceiptLongOutlined /> },
   { href: "/payments", label: "Payments", icon: <PaymentsOutlined /> },
-  { href: "/borrowers", label: "Contacts", icon: <GroupOutlined /> },
+  { href: "/borrowers", label: "Borrowers", icon: <GroupOutlined /> },
   { href: "/reports", label: "Reports", icon: <AssessmentOutlined /> },
 ];
 
@@ -175,7 +175,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Logout />
           </ListItemIcon>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Mag Logout
+            Logout
           </Typography>
         </ListItemButton>
       </Box>
@@ -220,7 +220,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <ListItemIcon>
                 <Logout fontSize="small" />
               </ListItemIcon>
-              Mag Logout
+              Logout
             </MenuItem>
           </Menu>
         </Toolbar>

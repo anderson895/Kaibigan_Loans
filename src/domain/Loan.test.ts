@@ -71,7 +71,7 @@ describe("Weekly terms", () => {
   it("1-week one-time payment is due 7 days later", () => {
     const loan = Loan.create({ ...base, principal: 1000, interestValue: 100, paymentPlan: "lump", term: 1, termUnit: "weeks", startDate: "2025-04-28" });
     expect(loan.schedule).toEqual([{ dueDate: "2025-05-05", amountDue: 1100, status: "pending", paidDate: null }]);
-    expect(loan.planLabel()).toBe("Isang bagsak after 1 week");
+    expect(loan.planLabel()).toBe("One-time payment after 1 week");
   });
 
   it("weekly installments are 7 days apart", () => {

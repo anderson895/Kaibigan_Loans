@@ -59,6 +59,7 @@ export class PaymentRepository extends BaseRepository<Payment, PaymentProps> {
 
 export type ActivityType =
   | "loan_created"
+  | "loan_disbursed"
   | "loan_requested"
   | "request_approved"
   | "request_rejected"

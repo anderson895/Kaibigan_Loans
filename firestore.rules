@@ -39,7 +39,17 @@ service cloud.firestore {
 
     match /borrowers/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.email == myEmail());
-      allow write: if isAdmin();
+      allow update, delete: if isAdmin();
+      // Registered users create their own profile (doc id = their uid) — no manual "add contact" step.
+      allow create: if isAdmin() || (
+        signedIn()
+        && id == request.auth.uid
+        && request.resource.data.email == myEmail()
+        && request.resource.data.keys().hasOnly(['name', 'email', 'phone', 'payoutDetails', 'createdAt'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+      );
     }
 
     match /loans/{id} {

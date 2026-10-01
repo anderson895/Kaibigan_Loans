@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function LoansTable({ loans, selectedId, onView, compact }: Props) {
-  if (!loans.length) return <EmptyState>Walang nakitang loan.</EmptyState>;
+  if (!loans.length) return <EmptyState>No loans found.</EmptyState>;
   const now = today();
   return (
     <TableContainer>

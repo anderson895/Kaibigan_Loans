@@ -2,7 +2,7 @@
 import type { User } from "firebase/auth";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Role } from "@/services/AuthService";
-import { authService } from "@/services/container";
+import { authService, loanService } from "@/services/container";
 
 interface AuthState {
   user: User | null;
@@ -28,7 +28,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(next);
     setVerified(!!next?.emailVerified);
     // Unverified users cannot read Firestore yet, so they get no role until they verify.
-    setRole(next?.emailVerified ? await authService.resolveRole(next).catch(() => "borrower" as const) : null);
+    const nextRole = next?.emailVerified ? await authService.resolveRole(next).catch(() => "borrower" as const) : null;
+    if (next?.email && nextRole === "borrower") {
+      // Registered users become borrowers automatically (no manual "add contact" step).
+      await loanService
+        .ensureBorrowerFor({ uid: next.uid, email: next.email.toLowerCase(), displayName: next.displayName })
+        .catch((e) => console.error("Could not create borrower profile", e));
+    }
+    setRole(nextRole);
   };
 
   useEffect(

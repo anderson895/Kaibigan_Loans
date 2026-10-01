@@ -1,42 +1,68 @@
 "use client";
 import Add from "@mui/icons-material/Add";
-import DeleteOutline from "@mui/icons-material/DeleteOutlined";
 import EditOutlined from "@mui/icons-material/EditOutlined";
-import { Button, IconButton, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
-import { useState } from "react";
+import Search from "@mui/icons-material/Search";
+import {
+  Button,
+  IconButton,
+  InputAdornment,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+} from "@mui/material";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { BorrowerDialog } from "@/components/BorrowerDialog";
+import { NewLoanDialog } from "@/components/LoanDialogs";
 import { EmptyState, ErrorAlert, Loading, NameCell, PageHeader } from "@/components/ui";
 import type { Borrower } from "@/domain/Borrower";
 import { formatPeso } from "@/domain/money";
-import { useBorrowers, useDeleteBorrower, useLoans } from "@/hooks/queries";
+import { useBorrowers, useLoans } from "@/hooks/queries";
 
+/** Everyone who registered (or was added earlier) — the lender picks from here to create a loan. */
 export default function BorrowersPage() {
+  const router = useRouter();
   const { data: borrowers = [], isPending, error } = useBorrowers();
   const { data: loans = [] } = useLoans();
-  const remove = useDeleteBorrower();
-  const [dialog, setDialog] = useState<{ open: boolean; borrower: Borrower | null; key: number }>({ open: false, borrower: null, key: 0 });
-  const openDialog = (borrower: Borrower | null) => setDialog({ open: true, borrower, key: dialog.key + 1 });
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState<{ borrower: Borrower; key: number } | null>(null);
+  const [lendTo, setLendTo] = useState<{ borrower: Borrower; key: number } | null>(null);
 
-  const balanceOf = (email: string) =>
-    loans.filter((l) => l.borrowerEmail === email && l.isActive).reduce((sum, l) => sum + l.balance, 0);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return borrowers.filter((b) => !q || b.name.toLowerCase().includes(q) || b.email.includes(q));
+  }, [borrowers, search]);
+
+  const statsOf = (email: string) => {
+    const active = loans.filter((l) => l.borrowerEmail === email && l.isActive);
+    return { active: active.length, outstanding: active.reduce((sum, l) => sum + l.balance, 0) };
+  };
 
   return (
     <>
-      <PageHeader
-        title="Contacts"
-        subtitle="Ang mga kaibigang pinapautang mo. Ang email nila ang gagamitin sa pag-login."
-        action={
-          <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(null)}>
-            New Contact
-          </Button>
-        }
-      />
+      <PageHeader title="Borrowers" subtitle="Everyone who registered. Pick a borrower to create a loan for them." />
       <Paper sx={{ p: 2.5 }}>
-        <ErrorAlert error={error ?? remove.error} />
+        <TextField
+          size="small"
+          placeholder="Search by name or email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ mb: 2, width: { xs: "100%", sm: 360 } }}
+          slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search /></InputAdornment> } }}
+        />
+        <ErrorAlert error={error} />
         {isPending ? (
           <Loading />
-        ) : borrowers.length === 0 ? (
-          <EmptyState>Wala pang contact. Magdagdag muna bago gumawa ng loan.</EmptyState>
+        ) : filtered.length === 0 ? (
+          <EmptyState>
+            {borrowers.length === 0 ? "No borrowers yet. They will appear here once they register and verify their email." : "No matches."}
+          </EmptyState>
         ) : (
           <TableContainer>
             <Table>
@@ -44,46 +70,62 @@ export default function BorrowersPage() {
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Phone</TableCell>
-                  <TableCell>Saan ipapadala</TableCell>
+                  <TableCell>Send money to</TableCell>
+                  <TableCell>Joined</TableCell>
+                  <TableCell>Active Loans</TableCell>
                   <TableCell>Outstanding</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {borrowers.map((b) => (
-                  <TableRow key={b.id} hover>
-                    <TableCell>
-                      <NameCell name={b.name} sub={b.email} />
-                    </TableCell>
-                    <TableCell>{b.phone || "-"}</TableCell>
-                    <TableCell sx={{ maxWidth: 260 }}>{b.payoutDetails || "-"}</TableCell>
-                    <TableCell>{formatPeso(balanceOf(b.email))}</TableCell>
-                    <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                      <IconButton size="small" onClick={() => openDialog(b)} aria-label="Edit">
-                        <EditOutlined />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        aria-label="Delete"
-                        onClick={() => confirm(`Burahin si ${b.name}?`) && remove.mutate(b.id)}
-                      >
-                        <DeleteOutline />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map((b) => {
+                  const stats = statsOf(b.email);
+                  return (
+                    <TableRow key={b.id} hover>
+                      <TableCell>
+                        <NameCell name={b.name} sub={b.email} />
+                      </TableCell>
+                      <TableCell>{b.phone || "-"}</TableCell>
+                      <TableCell sx={{ maxWidth: 240 }}>{b.payoutDetails || "-"}</TableCell>
+                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                        {new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
+                      </TableCell>
+                      <TableCell>{stats.active}</TableCell>
+                      <TableCell>{formatPeso(stats.outstanding)}</TableCell>
+                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                        <Tooltip title="Edit phone / payout details">
+                          <IconButton size="small" onClick={() => setEditing({ borrower: b, key: Date.now() })} aria-label={`Edit ${b.name}`}>
+                            <EditOutlined />
+                          </IconButton>
+                        </Tooltip>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<Add />}
+                          sx={{ ml: 1 }}
+                          onClick={() => setLendTo({ borrower: b, key: Date.now() })}
+                        >
+                          New Loan
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
         )}
       </Paper>
-      <BorrowerDialog
-        key={dialog.key}
-        open={dialog.open}
-        borrower={dialog.borrower}
-        onClose={() => setDialog({ ...dialog, open: false })}
-      />
+      {editing && <BorrowerDialog key={editing.key} open borrower={editing.borrower} onClose={() => setEditing(null)} />}
+      {lendTo && (
+        <NewLoanDialog
+          key={lendTo.key}
+          open
+          initialBorrower={lendTo.borrower}
+          onClose={() => setLendTo(null)}
+          onCreated={(id) => router.push(`/loans?id=${id}`)}
+        />
+      )}
     </>
   );
 }

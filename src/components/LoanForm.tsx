@@ -90,13 +90,13 @@ export function TermFields({
         value={paymentPlan}
         onChange={(e) => onChange({ paymentPlan: e.target.value as PaymentPlan })}
       >
-        <MenuItem value="installment">Hulugan (Installment)</MenuItem>
-        <MenuItem value="lump">Isang bagsak</MenuItem>
+        <MenuItem value="installment">Installments</MenuItem>
+        <MenuItem value="lump">One-time payment</MenuItem>
       </TextField>
       <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
         <TextField
           fullWidth
-          label={paymentPlan === "lump" ? `Babayaran after (${unitLabel})` : `Ilang ${unitLabel}`}
+          label={paymentPlan === "lump" ? `Due after (${unitLabel})` : `Number of ${unitLabel}`}
           type="number"
           value={term}
           onChange={(e) => onChange({ term: e.target.value })}
@@ -151,7 +151,7 @@ export function LoanForm({ values, onChange, showAmountPaid }: Props) {
           value={values.interestType}
           onChange={(_, v: InterestType | null) => v && set("interestType", v)}
         >
-          <ToggleButton value="none">Walang interest</ToggleButton>
+          <ToggleButton value="none">No interest</ToggleButton>
           <ToggleButton value="fixed">Fixed amount</ToggleButton>
           <ToggleButton value="percent">% per {unitSingular}</ToggleButton>
         </ToggleButtonGroup>
@@ -180,7 +180,7 @@ export function LoanForm({ values, onChange, showAmountPaid }: Props) {
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
         <TextField
           fullWidth
-          label="Petsa ng loan"
+          label="Loan date"
           type="date"
           value={values.startDate}
           onChange={(e) => set("startDate", e.target.value)}
@@ -189,11 +189,11 @@ export function LoanForm({ values, onChange, showAmountPaid }: Props) {
         {showAmountPaid && (
           <TextField
             fullWidth
-            label="Nabayaran na (lumang record)"
+            label="Already paid (old record)"
             type="number"
             value={values.amountPaid}
             onChange={(e) => set("amountPaid", e.target.value)}
-            helperText="Para sa pag-import mula sa Word"
+            helperText="For importing old records"
             slotProps={peso}
           />
         )}
@@ -209,12 +209,12 @@ export function LoanForm({ values, onChange, showAmountPaid }: Props) {
           </Typography>
           <Typography variant="body2">
             {preview.schedule.length === 1
-              ? `Isang bagsak na ${formatPeso(preview.schedule[0].amountDue)} sa ${formatDate(preview.schedule[0].dueDate)}`
-              : `${preview.schedule.length} × ${formatPeso(preview.schedule[0].amountDue)} ${values.termUnit === "weeks" ? "kada linggo" : "kada buwan"}, simula ${formatDate(preview.schedule[0].dueDate)}`}
+              ? `One-time payment of ${formatPeso(preview.schedule[0].amountDue)} on ${formatDate(preview.schedule[0].dueDate)}`
+              : `${preview.schedule.length} × ${formatPeso(preview.schedule[0].amountDue)} ${values.termUnit === "weeks" ? "weekly" : "monthly"}, starting ${formatDate(preview.schedule[0].dueDate)}`}
           </Typography>
         </Alert>
       ) : (
-        <Alert severity="warning">Ilagay ang tamang loan amount para makita ang total.</Alert>
+        <Alert severity="warning">Enter a valid loan amount to see the total.</Alert>
       )}
     </Stack>
   );

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { NotLinkedCard } from "@/components/NotLinkedCard";
+import { DisbursementSection } from "@/components/DisbursementPanel";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
 import { UploadPaymentDialog } from "@/components/PaymentDialogs";
 import { EmptyState, ErrorAlert, Loading, PageHeader, StatusChip } from "@/components/ui";
@@ -32,7 +33,7 @@ function LoanCard({ loan, onOpen }: { loan: Loan; onOpen: () => void }) {
           <Typography variant="h4">{formatPeso(loan.balance)}</Typography>
           <Typography variant="body2" color="text.secondary">
             of {formatPeso(loan.totalAmount)}
-            {next && loan.isActive && ` · Susunod: ${formatPeso(next.amountDue)} sa ${formatDate(next.dueDate)}`}
+            {next && loan.isActive && ` · Next: ${formatPeso(next.amountDue)} on ${formatDate(next.dueDate)}`}
           </Typography>
         </CardContent>
       </CardActionArea>
@@ -48,7 +49,7 @@ function MyLoanDetails({ loan, onBack }: { loan: Loan; onBack: () => void }) {
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
       <Button startIcon={<ArrowBack />} onClick={onBack} sx={{ mb: 2 }}>
-        Bumalik
+        Back
       </Button>
       <LoanHeader
         loan={loan}
@@ -67,10 +68,11 @@ function MyLoanDetails({ loan, onBack }: { loan: Loan; onBack: () => void }) {
       )}
       {pendingCount > 0 && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          May {pendingCount} payment na naghihintay ng approval. Ibabawas ito sa balance mo kapag na-approve na.
+          {pendingCount} payment(s) waiting for approval. They will be deducted from your balance once approved.
         </Alert>
       )}
       <LoanSummary loan={loan} />
+      <DisbursementSection loan={loan} canEdit={false} />
       <Typography variant="subtitle1" sx={{ fontWeight: 700, mt: 3, mb: 1 }}>
         Payment Schedule
       </Typography>
@@ -101,12 +103,12 @@ function MyLoansView() {
   const totalBalance = all.filter((l) => l.isActive).reduce((s, l) => s + l.balance, 0);
   return (
     <>
-      <PageHeader title={`Hi, ${me.data.name.split(" ")[0]}!`} subtitle={`Kabuuang balance: ${formatPeso(totalBalance)}`} />
+      <PageHeader title={`Hi, ${me.data.name.split(" ")[0]}!`} subtitle={`Total balance: ${formatPeso(totalBalance)}`} />
       <ErrorAlert error={loans.error} />
       {all.length === 0 ? (
         <Paper>
           <EmptyState>
-            Wala kang loan ngayon. <Link href="/request">Mag-request ng loan</Link>
+            You have no loans right now. <Link href="/request">Request a loan</Link>
           </EmptyState>
         </Paper>
       ) : (

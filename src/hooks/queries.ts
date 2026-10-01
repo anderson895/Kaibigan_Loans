@@ -84,12 +84,41 @@ export function useDeleteBorrower() {
   return useMutation({ mutationFn: (id: string) => loanService.deleteBorrower(id), onSuccess: () => invalidate(keys.borrowers) });
 }
 
+interface ProofOfSend {
+  file: File;
+  referenceNo: string;
+  sentOn: string;
+}
+
 export function useCreateLoan() {
   const { email } = useAuth();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: ({ borrower, terms }: { borrower: Borrower; terms: LoanTermsInput & { amountPaid?: number } }) =>
-      loanService.createLoan(borrower, terms, email),
+    mutationFn: async ({
+      borrower,
+      terms,
+      proof,
+    }: {
+      borrower: Borrower;
+      terms: LoanTermsInput & { amountPaid?: number };
+      proof?: ProofOfSend | null;
+    }) => {
+      const id = await loanService.createLoan(borrower, terms, email);
+      if (proof) {
+        const loan = await loanService.getLoan(id);
+        if (loan) await loanService.attachDisbursement(loan, proof, email);
+      }
+      return id;
+    },
+    onSuccess: () => invalidate(keys.loans, keys.activity),
+  });
+}
+
+export function useAttachDisbursement() {
+  const { email } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ loan, ...proof }: ProofOfSend & { loan: Loan }) => loanService.attachDisbursement(loan, proof, email),
     onSuccess: () => invalidate(keys.loans, keys.activity),
   });
 }

@@ -31,7 +31,7 @@ export default function PaymentsPage() {
 
   return (
     <>
-      <PageHeader title="Payments" subtitle="I-approve ang mga na-upload na payment. Automatic itong ibabawas sa balance." />
+      <PageHeader title="Payments" subtitle="Approve uploaded payments. Approved amounts are deducted from the balance automatically." />
       <Paper sx={{ p: 2.5 }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
           <Tab value="pending" label={`Pending (${count("pending")})`} />
@@ -42,7 +42,7 @@ export default function PaymentsPage() {
         {isPending ? (
           <Loading />
         ) : rows.length === 0 ? (
-          <EmptyState>Walang {tab} na payment.</EmptyState>
+          <EmptyState>No {tab} payments.</EmptyState>
         ) : (
           <TableContainer>
             <Table>
@@ -71,7 +71,7 @@ export default function PaymentsPage() {
                     <TableCell>
                       {p.ocr?.amount != null ? formatPeso(p.ocr.amount) : "-"}
                       {p.hasOcrMismatch && (
-                        <Tooltip title="Hindi tugma sa declared amount">
+                        <Tooltip title="Does not match the declared amount">
                           <WarningAmber color="warning" fontSize="small" sx={{ ml: 0.5, verticalAlign: "middle" }} />
                         </Tooltip>
                       )}

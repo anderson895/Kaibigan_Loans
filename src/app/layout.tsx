@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "Kaibigan Loans",
-  description: "Tulong sa mga Kaibigan — simple at transparent na loan tracker",
+  description: "Tulong sa mga Kaibigan — a simple, transparent loan tracker for friends",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#0f1f3d" };

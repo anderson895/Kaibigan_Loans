@@ -31,7 +31,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <PageHeader title={`Hello, ${firstName}!`} subtitle="Narito ang overview ng iyong mga loan." />
+      <PageHeader title={`Hello, ${firstName}!`} subtitle="Here's the overview of your loans." />
       <ErrorAlert error={loans.error} />
       {requests.length > 0 && (
         <Alert
@@ -43,7 +43,7 @@ export default function DashboardPage() {
             </Button>
           }
         >
-          May {requests.length} bagong loan request.
+          {requests.length} new loan request(s).
         </Alert>
       )}
 
@@ -52,25 +52,25 @@ export default function DashboardPage() {
           icon={<GroupOutlined />}
           label="Total Borrowers"
           value={String(new Set(active.map((l) => l.borrowerEmail)).size)}
-          caption="Active na borrowers"
+          caption="Active borrowers"
         />
         <StatCard
           icon={<SavingsOutlined />}
           label="Total Loaned Amount"
           value={formatPeso(booked.reduce((s, l) => s + l.principal, 0))}
-          caption="Sa lahat ng loans"
+          caption="Across all loans"
         />
         <StatCard
           icon={<Percent />}
           label="Total Interest Earned"
           value={formatPeso(booked.reduce((s, l) => s + l.interestAmount, 0))}
-          caption={`Mula sa ${booked.filter((l) => l.interestAmount > 0).length} loans`}
+          caption={`From ${booked.filter((l) => l.interestAmount > 0).length} loans`}
         />
         <StatCard
           icon={<ScheduleOutlined />}
           label="Pending Payments"
           value={formatPeso(pending.reduce((s, p) => s + p.amount, 0))}
-          caption={`${pending.length} naghihintay ng approval`}
+          caption={`${pending.length} waiting for approval`}
         />
       </Box>
 

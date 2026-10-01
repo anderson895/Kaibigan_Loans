@@ -14,7 +14,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" subtitle="Sino ang pwedeng mag-manage ng mga loan." />
+      <PageHeader title="Settings" subtitle="Who can manage loans." />
       <Paper sx={{ p: 2.5, maxWidth: 560 }}>
         <Typography variant="h6" sx={{ mb: 1 }}>
           Admins
@@ -35,14 +35,14 @@ export default function SettingsPage() {
                 }
               >
                 <Typography variant="body2">
-                  {a} {a === me && "(ikaw)"}
+                  {a} {a === me && "(you)"}
                 </Typography>
               </ListItem>
             ))}
           </List>
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-          <TextField size="small" fullWidth placeholder="Email ng bagong admin" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField size="small" fullWidth placeholder="New admin's email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Button variant="contained" disabled={!email || add.isPending} onClick={() => add.mutate(email, { onSuccess: () => setEmail("") })}>
             Add
           </Button>

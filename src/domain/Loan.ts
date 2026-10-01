@@ -13,6 +13,15 @@ export interface ScheduleItem {
   paidDate: IsoDate | null;
 }
 
+/** Proof that the lender sent the money to the borrower (GCash/bank screenshot). */
+export interface Disbursement {
+  receiptUrl: string;
+  receiptPublicId: string;
+  referenceNo: string;
+  sentOn: IsoDate;
+  uploadedAt: number;
+}
+
 export interface LoanProps {
   id: string;
   borrowerId: string;
@@ -36,6 +45,7 @@ export interface LoanProps {
   notes: string;
   payoutDetails: string;
   createdAt: number;
+  disbursement: Disbursement | null;
 }
 
 export interface NewLoanInput {
@@ -67,6 +77,7 @@ export class Loan {
       ...rest,
       term: rest.term ?? termMonths ?? 1,
       termUnit: rest.termUnit ?? "months",
+      disbursement: rest.disbursement ?? null,
       schedule: rest.schedule.map((s) => ({ ...s })),
     });
   }
@@ -104,6 +115,7 @@ export class Loan {
       notes: input.notes ?? "",
       payoutDetails: input.payoutDetails ?? "",
       createdAt: Date.now(),
+      disbursement: null,
     });
     if (!input.asRequest && input.amountPaid && input.amountPaid > 0) {
       loan = loan.applyPayment(input.amountPaid, input.startDate);
@@ -154,6 +166,7 @@ export class Loan {
   get notes() { return this.props.notes; }
   get payoutDetails() { return this.props.payoutDetails; }
   get createdAt() { return this.props.createdAt; }
+  get disbursement() { return this.props.disbursement; }
 
   get isRequest() { return this.props.status === "pending"; }
   get isActive() { return this.props.status === "ongoing" || this.props.status === "overdue"; }
@@ -169,8 +182,8 @@ export class Loan {
   }
 
   planLabel(): string {
-    if (this.props.paymentPlan === "lump") return `Isang bagsak after ${this.termLabel()}`;
-    return `${this.termLabel()} na hulugan (${this.props.termUnit === "weeks" ? "weekly" : "monthly"})`;
+    if (this.props.paymentPlan === "lump") return `One-time payment after ${this.termLabel()}`;
+    return `${this.termLabel()}, ${this.props.termUnit === "weeks" ? "weekly" : "monthly"} installments`;
   }
 
   /** Next unpaid installment, if any. */
@@ -215,6 +228,14 @@ export class Loan {
   rejectRequest(): Loan {
     if (!this.isRequest) throw new Error("Only pending requests can be rejected");
     return new Loan({ ...this.props, status: "rejected" });
+  }
+
+  withDisbursement(disbursement: Disbursement): Loan {
+    if (this.props.status === "pending" || this.props.status === "rejected") {
+      throw new Error("Approve the loan request before uploading proof of send.");
+    }
+    if (!disbursement.receiptUrl) throw new Error("Receipt is required");
+    return new Loan({ ...this.props, disbursement: { ...disbursement } });
   }
 
   toProps(): LoanProps {

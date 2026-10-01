@@ -88,7 +88,7 @@ function PasswordField({ label, value, onChange, autoComplete }: { label: string
       label={label}
       icon={<LockOutlined color="action" />}
       type={show ? "text" : "password"}
-      placeholder="Ilagay ang iyong password"
+      placeholder="Enter your password"
       value={value}
       onChange={(e) => onChange(e.target.value)}
       autoComplete={autoComplete}
@@ -97,7 +97,7 @@ function PasswordField({ label, value, onChange, autoComplete }: { label: string
         input: {
           endAdornment: (
             <InputAdornment position="end">
-              <IconButton onClick={() => setShow(!show)} edge="end" aria-label={show ? "Itago ang password" : "Ipakita ang password"}>
+              <IconButton onClick={() => setShow(!show)} edge="end" aria-label={show ? "Hide password" : "Show password"}>
                 {show ? <VisibilityOff /> : <Visibility />}
               </IconButton>
             </InputAdornment>
@@ -150,7 +150,7 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Ilagay ang iyong email"
+        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
@@ -177,7 +177,7 @@ export function LoginForm({ onSignup, onForgot }: { onSignup: () => void; onForg
       <Divider sx={{ color: "text.secondary", fontSize: 14 }}>o</Divider>
       <GoogleButton label="Sign in with Google" busy={busy} onError={setError} />
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-        Wala pang account?{" "}
+        Don't have an account?{" "}
         <MuiLink component="button" type="button" onClick={onSignup} sx={{ fontWeight: 600, verticalAlign: "baseline" }}>
           Mag Sign Up
         </MuiLink>
@@ -196,17 +196,17 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (mismatch) return setError("Hindi magkapareho ang password.");
+    if (mismatch) return setError("Passwords do not match.");
     run(() => authService.register(name, email, password));
   };
 
   return (
     <Stack component="form" spacing={2.5} onSubmit={submit} noValidate>
-      <Heading title="Gumawa ng Account" subtitle="Libre at mabilis. I-verify lang ang iyong email pagkatapos." />
+      <Heading title="Create an Account" subtitle="Free and quick. You will verify your email after signing up." />
       <Field
-        label="Buong Pangalan"
+        label="Full Name"
         icon={<PersonOutlined color="action" />}
-        placeholder="hal. Juan Dela Cruz"
+        placeholder="e.g. Juan Dela Cruz"
         value={name}
         onChange={(e) => setName(e.target.value)}
         autoComplete="name"
@@ -216,18 +216,17 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Ilagay ang iyong email"
+        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
-        helperText="Ito ang email na ibibigay mo sa nagpautang para ma-link ang iyong loan."
         required
       />
       <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" />
       <Box>
-        <PasswordField label="Ulitin ang Password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+        <PasswordField label="Confirm Password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
         <Typography variant="caption" color={mismatch ? "error" : "text.secondary"}>
-          {mismatch ? "Hindi magkapareho ang password." : `Dapat ${MIN_PASSWORD_LENGTH} characters pataas.`}
+          {mismatch ? "Passwords do not match." : `At least ${MIN_PASSWORD_LENGTH} characters.`}
         </Typography>
       </Box>
       <Messages error={error} notice={notice} />
@@ -244,7 +243,7 @@ export function SignupForm({ onLogin }: { onLogin: () => void }) {
       <Divider sx={{ color: "text.secondary", fontSize: 14 }}>o</Divider>
       <GoogleButton label="Sign up with Google" busy={busy} onError={setError} />
       <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-        May account na?{" "}
+        Already have an account?{" "}
         <MuiLink component="button" type="button" onClick={onLogin} sx={{ fontWeight: 600, verticalAlign: "baseline" }}>
           Mag-Login
         </MuiLink>
@@ -261,18 +260,18 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
     e.preventDefault();
     run(
       () => authService.sendPasswordReset(email),
-      "Kung may account ang email na ito, may ipinadala kaming link para mag-reset ng password. I-check ang inbox (at Spam).",
+      "If an account exists for this email, we sent a password reset link. Check your inbox (and Spam).",
     );
   };
 
   return (
     <Stack component="form" spacing={2.5} onSubmit={submit} noValidate>
-      <Heading title="Forgot Password" subtitle="Ilagay ang iyong email at padadalhan ka namin ng reset link." />
+      <Heading title="Forgot Password" subtitle="Enter your email and we will send you a reset link." />
       <Field
         label="Email"
         icon={<EmailOutlined color="action" />}
         type="email"
-        placeholder="Ilagay ang iyong email"
+        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         autoComplete="email"
@@ -280,9 +279,9 @@ export function ForgotPasswordForm({ initialEmail, onBack }: { initialEmail: str
       />
       <Messages error={error} notice={notice} />
       <Button type="submit" variant="contained" size="large" disabled={busy || !email} sx={pill}>
-        {busy ? "Sending..." : "I-send ang Reset Link"}
+        {busy ? "Sending..." : "Send Reset Link"}
       </Button>
-      <Button onClick={onBack}>Bumalik sa Login</Button>
+      <Button onClick={onBack}>Back to Login</Button>
     </Stack>
   );
 }
@@ -297,10 +296,10 @@ export function VerifyEmailPanel() {
       <Avatar sx={{ width: 64, height: 64, bgcolor: "#e3ecfd", color: "primary.main" }}>
         <MarkEmailReadOutlined fontSize="large" />
       </Avatar>
-      <Heading title="I-verify ang Email" subtitle="Isang hakbang na lang!" />
+      <Heading title="Verify your Email" subtitle="Just one more step!" />
       <Typography color="text.secondary" sx={{ lineHeight: 1.7 }}>
-        Nagpadala kami ng verification link sa <strong>{user?.email}</strong>. Buksan ang email at i-click ang link, tapos
-        bumalik dito at i-click ang <strong>Na-verify ko na</strong>.
+        We sent a verification link to <strong>{user?.email}</strong>. Open the email and click the link, then come back
+        here and click <strong>I've verified</strong>.
       </Typography>
       <Box sx={{ width: "100%" }}>
         <Messages error={error} notice={notice} />
@@ -313,16 +312,16 @@ export function VerifyEmailPanel() {
         sx={pill}
         onClick={() =>
           run(async () => {
-            if (!(await reloadUser())) setError("Hindi pa verified. I-click muna ang link sa email (i-check din ang Spam).");
+            if (!(await reloadUser())) setError("Not verified yet. Click the link in the email first (check Spam too).");
           })
         }
       >
-        Na-verify ko na
+        I've verified
       </Button>
-      <Button fullWidth variant="outlined" disabled={busy} sx={{ ...pill, borderWidth: 1.5 }} onClick={() => run(() => authService.resendVerification(), "Naipadala ulit ang verification email.")}>
-        I-send ulit ang link
+      <Button fullWidth variant="outlined" disabled={busy} sx={{ ...pill, borderWidth: 1.5 }} onClick={() => run(() => authService.resendVerification(), "Verification email sent again.")}>
+        Resend link
       </Button>
-      <Button onClick={() => authService.signOut()}>Gumamit ng ibang account</Button>
+      <Button onClick={() => authService.signOut()}>Use another account</Button>
     </Stack>
   );
 }

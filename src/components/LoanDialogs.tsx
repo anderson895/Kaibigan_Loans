@@ -1,6 +1,7 @@
 "use client";
 import {
   Autocomplete,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -15,17 +16,31 @@ import type { Borrower } from "@/domain/Borrower";
 import type { Loan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
 import { useBorrowers, useCreateLoan, useReviewRequest } from "@/hooks/queries";
+import { ProofOfSendFields, type ProofOfSendInput } from "./DisbursementPanel";
 import { emptyLoanForm, LoanForm, previewLoan, toTerms, type LoanFormValues } from "./LoanForm";
 import { ErrorAlert } from "./ui";
 
-export function NewLoanDialog({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated?: (id: string) => void }) {
+export function NewLoanDialog({
+  open,
+  onClose,
+  onCreated,
+  initialBorrower = null,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated?: (id: string) => void;
+  /** Pre-selects the borrower (e.g. when opened from the Borrowers list). Pass a new `key` to reset. */
+  initialBorrower?: Borrower | null;
+}) {
   const { data: borrowers = [] } = useBorrowers();
   const createLoan = useCreateLoan();
-  const [borrower, setBorrower] = useState<Borrower | null>(null);
+  const [borrower, setBorrower] = useState<Borrower | null>(initialBorrower);
   const [values, setValues] = useState<LoanFormValues>(emptyLoanForm);
+  const [proof, setProof] = useState<ProofOfSendInput | null>(null);
 
   const close = () => {
     setBorrower(null);
+    setProof(null);
     setValues(emptyLoanForm());
     createLoan.reset();
     onClose();
@@ -34,7 +49,7 @@ export function NewLoanDialog({ open, onClose, onCreated }: { open: boolean; onC
   const submit = () => {
     if (!borrower) return;
     createLoan.mutate(
-      { borrower, terms: { ...toTerms(values), amountPaid: Number(values.amountPaid || 0) } },
+      { borrower, terms: { ...toTerms(values), amountPaid: Number(values.amountPaid || 0) }, proof },
       {
         onSuccess: (id) => {
           onCreated?.(id);
@@ -55,18 +70,25 @@ export function NewLoanDialog({ open, onClose, onCreated }: { open: boolean; onC
             onChange={(_, v) => setBorrower(v)}
             getOptionLabel={(b) => `${b.name} (${b.email})`}
             isOptionEqualToValue={(a, b) => a.id === b.id}
+            noOptionsText="No borrowers yet. Ask them to register and verify their email, then open the site once."
             renderInput={(params) => (
-              <TextField {...params} label="Borrower" required helperText="Wala sa listahan? Idagdag muna sa Contacts." />
+              <TextField {...params} label="Borrower" required helperText="Not on the list? They need to register first." />
             )}
           />
           <LoanForm values={values} onChange={setValues} showAmountPaid />
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+              Proof of send (optional)
+            </Typography>
+            <ProofOfSendFields value={proof} onChange={setProof} />
+          </Box>
           <ErrorAlert error={createLoan.error} />
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={close}>Cancel</Button>
         <Button variant="contained" disabled={!borrower || !previewLoan(values) || createLoan.isPending} onClick={submit}>
-          {createLoan.isPending ? "Saving..." : "Save Loan"}
+          {createLoan.isPending ? (proof ? "Uploading..." : "Saving...") : "Save Loan"}
         </Button>
       </DialogActions>
     </Dialog>
@@ -106,7 +128,7 @@ export function ReviewRequestDialog({ loan, onClose }: { loan: Loan | null; onCl
         <Stack spacing={2} sx={{ pt: 1 }}>
           {loan && (
             <Typography variant="body2" color="text.secondary">
-              Humihiram ng {formatPeso(loan.principal)}. Ipadala sa: <strong>{loan.payoutDetails || "—"}</strong>
+              Requesting {formatPeso(loan.principal)}. Send to: <strong>{loan.payoutDetails || "—"}</strong>
             </Typography>
           )}
           <LoanForm values={current} onChange={setValues} />

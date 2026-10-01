@@ -33,8 +33,8 @@ export class PaymentService {
 
   /** Borrower uploads a receipt; it waits for admin approval before touching the balance. */
   async submit({ loan, amount, referenceNo, paidOn, file, ocr }: SubmitPaymentInput): Promise<string> {
-    if (!loan.isActive) throw new Error("Hindi na tumatanggap ng payment ang loan na ito.");
-    if (amount > loan.balance) throw new Error(`Mas malaki ang amount kaysa sa natitirang balance (${loan.balance}).`);
+    if (!loan.isActive) throw new Error("This loan no longer accepts payments.");
+    if (amount > loan.balance) throw new Error(`Amount is greater than the remaining balance (${loan.balance}).`);
     const receipt = await this.uploads.uploadReceipt(file);
     const payment = Payment.submit({
       loanId: loan.id,

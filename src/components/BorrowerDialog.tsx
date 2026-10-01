@@ -24,21 +24,21 @@ export function BorrowerDialog({ open, borrower, onClose }: { open: boolean; bor
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>{borrower ? "Edit Contact" : "New Contact"}</DialogTitle>
+      <DialogTitle>{borrower ? "Edit Borrower" : "New Borrower"}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <TextField label="Pangalan" required value={values.name} onChange={set("name")} />
+          <TextField label="Name" required value={values.name} onChange={set("name")} />
           <TextField
-            label="Email na gamit sa pag-login"
+            label="Login email"
             required
             type="email"
             value={values.email}
             onChange={set("email")}
-            helperText="Gmail (kung Google sign-in) o ang email na ni-register niya"
+            helperText="The email they sign in with"
           />
           <TextField label="Phone / Messenger" value={values.phone} onChange={set("phone")} />
           <TextField
-            label="Saan ipapadala ang pera"
+            label="Where to send the money"
             placeholder="GCash 0917 123 4567 — Juan D."
             multiline
             minRows={2}

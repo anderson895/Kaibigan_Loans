@@ -58,7 +58,7 @@ function Showcase() {
         <Box
           component="img"
           src={IMAGES.loginCoins.src}
-          alt="Phone na may check mark at mga piso coins"
+          alt="Phone with a check mark and peso coins"
           width={IMAGES.loginCoins.width}
           height={IMAGES.loginCoins.height}
           sx={{ width: "100%", maxWidth: 320, height: "auto", justifySelf: "center" }}
@@ -97,7 +97,7 @@ function LoginView() {
       .isSetupDone()
       .then((done) => (done ? router.replace(homeFor(role)) : setNeedsSetup(true)))
       .catch((e) =>
-        setError(`Hindi ma-check ang admin setup (${e instanceof Error ? e.message : e}). Naka-deploy na ba ang Firestore rules?`),
+        setError(`Could not check admin setup (${e instanceof Error ? e.message : e}). Are the Firestore rules deployed?`),
       );
   }, [loading, user, verified, role, router]);
 
@@ -132,7 +132,7 @@ function LoginView() {
       <Stack spacing={2}>
         <Typography variant="h5">First-time setup</Typography>
         <Typography color="text.secondary">
-          Wala pang admin. Gawing admin ang <strong>{user.email}</strong>? Isang beses lang ito pwedeng gawin.
+          No admin has been set up yet. Make <strong>{user.email}</strong> the admin? This can only be done once.
         </Typography>
         <Button
           variant="contained"
@@ -147,10 +147,10 @@ function LoginView() {
             })
           }
         >
-          Oo, gawin akong admin
+          Yes, make me the admin
         </Button>
         <Button variant="outlined" sx={{ borderRadius: 99, py: 1.2 }} onClick={() => router.replace(homeFor(role))}>
-          Hindi, borrower ako
+          No, I'm a borrower
         </Button>
       </Stack>
     );

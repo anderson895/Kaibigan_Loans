@@ -37,7 +37,7 @@ Kapalit ito ng mano-manong paglilista sa Word (Name, Credit, Interest, Balance, 
 | **Dashboard** | Total Borrowers, Total Loaned, Interest Earned, Pending Payments, Recent Loans, Recent Activity |
 | **Loans** | Search at status filter, **+ New Loan** (may live preview ng total at schedule), Loan Details (summary, schedule, payments), review ng loan request |
 | **Payments** | Pending, Approved at Rejected tabs, resibo, OCR amount, mismatch warning, **Approve & deduct** o **Reject** (may dahilan) |
-| **Contacts** | Listahan ng borrower (name, Google email, phone, saan ipapadala ang pera) at outstanding balance |
+| **Borrowers** | Lahat ng nag-register (kusang nadadagdag pagka-verify ng email), phone, saan ipapadala ang pera, active loans, outstanding, at **New Loan** button |
 | **Reports** | Total lent, interest, collected, outstanding, per-month na buod, **Export CSV** |
 | **Settings** | Magdagdag o magtanggal ng ibang admin |
 
@@ -148,8 +148,9 @@ CLOUDINARY_API_SECRET=...            # SERVER ONLY. Huwag lagyan ng NEXT_PUBLIC_
 3. Isang beses lang ito pwedeng gawin. Pagkatapos, sa **Settings** na lang magdadagdag ng ibang admin.
 
 ### 7. Pag-add ng borrower
-1. **Contacts → New Contact**: ilagay ang pangalan at ang **Gmail** ng kaibigan mo.
-2. Kapag nag-login siya gamit ang Gmail na iyon, makikita na niya ang mga utang niya.
+1. Ipa-register ang kaibigan mo sa site (email at password, o Google), at ipa-verify ang email niya.
+2. Kusa siyang lalabas sa **Borrowers**. I-click ang **New Loan** sa tabi ng pangalan niya.
+3. Pagkatapos ipadala ang pera, i-upload ang screenshot bilang **Proof of Send** (sa New Loan o sa Loan Details). Makikita ito ng borrower.
 3. Para sa mga lumang record mula sa Word: **Loans → + New Loan**, at ilagay ang **"Nabayaran na (lumang record)"** para tama ang balance.
 
 ---

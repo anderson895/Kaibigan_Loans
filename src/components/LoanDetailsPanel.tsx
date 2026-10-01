@@ -87,7 +87,7 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
   if (!payments.length) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-        Wala pang na-upload na payment.
+        No payments uploaded yet.
       </Typography>
     );
   }

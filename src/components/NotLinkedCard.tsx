@@ -25,10 +25,10 @@ export function NotLinkedCard() {
       <Avatar sx={{ width: 64, height: 64, mx: "auto", mb: 2, bgcolor: "#fef3c7", color: "#b45309" }}>
         <LinkOff fontSize="large" />
       </Avatar>
-      <Typography variant="h5">Hindi pa naka-link ang account mo</Typography>
+      <Typography variant="h5">Setting up your borrower profile</Typography>
       <Typography color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>
-        Para makita mo ang iyong loan at makapag-upload ng payment, kailangan ka munang i-add ng nagpautang sa kanyang
-        Contacts gamit ang email na ito:
+        We could not load your borrower profile yet. Refresh the page in a moment. If it still shows, send this email to
+        your lender:
       </Typography>
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -37,16 +37,16 @@ export function NotLinkedCard() {
       >
         <Typography sx={{ fontWeight: 700, wordBreak: "break-all" }}>{email}</Typography>
         <Button size="small" variant="outlined" startIcon={<ContentCopy />} onClick={copy} sx={{ flexShrink: 0 }}>
-          {copied ? "Na-copy!" : "Copy"}
+          {copied ? "Copied!" : "Copy"}
         </Button>
       </Stack>
       <Box component="ol" sx={{ textAlign: "left", color: "text.secondary", mt: 3, mb: 0, pl: 3, lineHeight: 1.9 }}>
-        <li>I-copy ang email sa itaas at i-send sa nagpautang (hal. sa Messenger).</li>
-        <li>Hintayin na ma-add ka niya sa Contacts.</li>
-        <li>I-refresh ang page na ito — lalabas na ang iyong mga loan.</li>
+        <li>Refresh this page.</li>
+        <li>If this keeps showing, copy the email above and send it to your lender.</li>
+        <li>Your loans will appear here once your profile is ready.</li>
       </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-        Maling account? Gamitin ang <strong>Mag Logout</strong> sa sidebar at mag-login ulit.
+        Wrong account? Use <strong>Logout</strong> in the sidebar and sign in again.
       </Typography>
     </Paper>
   );

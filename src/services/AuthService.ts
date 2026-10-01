@@ -20,17 +20,17 @@ import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, writeBatch, type F
 export type Role = "admin" | "borrower";
 
 const AUTH_ERRORS: Record<string, string> = {
-  "auth/invalid-credential": "Mali ang email o password.",
-  "auth/wrong-password": "Mali ang email o password.",
-  "auth/user-not-found": "Mali ang email o password.",
-  "auth/invalid-email": "Mali ang format ng email.",
-  "auth/email-already-in-use": "May account na ang email na ito. Mag-login na lang, o gamitin ang Sign in with Google.",
-  "auth/weak-password": "Masyadong mahina ang password (dapat 8 characters pataas).",
-  "auth/too-many-requests": "Masyadong maraming subok. Maghintay muna ng ilang minuto.",
-  "auth/popup-closed-by-user": "Naisara ang Google sign-in window.",
-  "auth/network-request-failed": "Walang internet connection. Subukan ulit.",
-  "auth/operation-not-allowed": "Hindi pa naka-enable ang Email/Password login sa Firebase.",
-  "auth/unauthorized-domain": "Hindi pa naka-authorize ang domain na ito sa Firebase.",
+  "auth/invalid-credential": "Incorrect email or password.",
+  "auth/wrong-password": "Incorrect email or password.",
+  "auth/user-not-found": "Incorrect email or password.",
+  "auth/invalid-email": "Invalid email format.",
+  "auth/email-already-in-use": "An account with this email already exists. Log in instead, or use Sign in with Google.",
+  "auth/weak-password": "Password is too weak (at least 8 characters).",
+  "auth/too-many-requests": "Too many attempts. Please wait a few minutes.",
+  "auth/popup-closed-by-user": "The Google sign-in window was closed.",
+  "auth/network-request-failed": "No internet connection. Please try again.",
+  "auth/operation-not-allowed": "Email/Password login is not enabled in Firebase yet.",
+  "auth/unauthorized-domain": "This domain is not authorized in Firebase yet.",
 };
 
 /** Turns Firebase auth errors into friendly Taglish messages. */
@@ -71,8 +71,8 @@ export class AuthService {
 
   /** Creates an email/password account and sends a verification link (required before data access). */
   async register(name: string, email: string, password: string): Promise<User> {
-    if (!name.trim()) throw new Error("Kailangan ang pangalan.");
-    if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Dapat ${MIN_PASSWORD_LENGTH} characters pataas ang password.`);
+    if (!name.trim()) throw new Error("Name is required.");
+    if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters.`);
     const { user } = await createUserWithEmailAndPassword(this.auth, email.trim(), password);
     await updateProfile(user, { displayName: name.trim() });
     await sendEmailVerification(user);
@@ -133,12 +133,12 @@ export class AuthService {
 
   async addAdmin(email: string): Promise<void> {
     const normalized = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("Mali ang email");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("Invalid email");
     await setDoc(doc(this.db, "admins", normalized), { email: normalized, addedAt: Date.now() });
   }
 
   async removeAdmin(email: string): Promise<void> {
-    if (email === this.auth.currentUser?.email?.toLowerCase()) throw new Error("Hindi mo pwedeng tanggalin ang sarili mo");
+    if (email === this.auth.currentUser?.email?.toLowerCase()) throw new Error("You cannot remove yourself");
     await deleteDoc(doc(this.db, "admins", email));
   }
 }

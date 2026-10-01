@@ -120,6 +120,33 @@ describe("borrower access", () => {
   });
 });
 
+describe("self-registered borrower profile", () => {
+  beforeEach(seed);
+  const profile = (email: string) => ({ name: "New User", email, phone: "", payoutDetails: "", createdAt: 1 });
+
+  it("a user can create only their own profile, keyed by uid", async () => {
+    const db = user("newbie@gmail.com"); // uid = "newbie"
+    await assertSucceeds(setDoc(doc(db, "borrowers/newbie"), profile("newbie@gmail.com")));
+    await assertFails(setDoc(doc(db, "borrowers/someoneelse"), profile("newbie@gmail.com")));
+  });
+
+  it("cannot create a profile for another email or with extra fields", async () => {
+    const db = user("newbie@gmail.com");
+    await assertFails(setDoc(doc(db, "borrowers/newbie"), profile("anna@gmail.com")));
+    await assertFails(setDoc(doc(db, "borrowers/newbie"), { ...profile("newbie@gmail.com"), role: "admin" }));
+  });
+
+  it("unverified users cannot create a profile", async () => {
+    const db = env.authenticatedContext("ghost", { email: "ghost@gmail.com", email_verified: false }).firestore();
+    await assertFails(setDoc(doc(db, "borrowers/ghost"), profile("ghost@gmail.com")));
+  });
+
+  it("borrowers cannot edit profiles (only the admin can)", async () => {
+    const db = user(ANNA);
+    await assertFails(updateDoc(doc(db, "borrowers/anna"), { name: "Hacked" }));
+  });
+});
+
 describe("admin access", () => {
   beforeEach(seed);
 

@@ -76,7 +76,7 @@ export function UploadPaymentDialog({ loan, open, onClose }: { loan: Loan; open:
             Current balance: <strong>{formatPeso(loan.balance)}</strong>
           </Typography>
           <Button component="label" variant="outlined" startIcon={<CloudUpload />} sx={{ py: 1.5 }}>
-            {file ? "Palitan ang screenshot" : "Pumili ng screenshot ng resibo"}
+            {file ? "Change screenshot" : "Choose receipt screenshot"}
             <input hidden type="file" accept="image/*" onChange={(e) => pickFile(e.target.files?.[0])} />
           </Button>
           {preview && (
@@ -89,21 +89,21 @@ export function UploadPaymentDialog({ loan, open, onClose }: { loan: Loan; open:
           )}
           {reading && (
             <Box>
-              <Typography variant="caption">Binabasa ang resibo (OCR)...</Typography>
+              <Typography variant="caption">Reading receipt (OCR)...</Typography>
               <LinearProgress />
             </Box>
           )}
           {ocr && !reading && (
             <Alert severity={ocr.amount ? "success" : "warning"} icon={<AutoAwesome />}>
               {ocr.amount
-                ? `Nabasa: ${formatPeso(ocr.amount)}${ocr.referenceNo ? ` · Ref ${ocr.referenceNo}` : ""}. Pakicheck kung tama.`
-                : "Hindi mabasa ang amount. Pakilagay nang mano-mano."}
+                ? `Detected: ${formatPeso(ocr.amount)}${ocr.referenceNo ? ` · Ref ${ocr.referenceNo}` : ""}. Please double-check.`
+                : "Could not read the amount. Please enter it manually."}
             </Alert>
           )}
           <TextField label="Amount" type="number" required value={amount} onChange={(e) => setAmount(e.target.value)} slotProps={pesoAdornment} />
           <TextField label="Reference No." value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} />
           <TextField
-            label="Petsa ng payment"
+            label="Payment date"
             type="date"
             value={paidOn}
             onChange={(e) => setPaidOn(e.target.value)}
@@ -171,23 +171,23 @@ export function ReviewPaymentDialog({ payment, onClose }: { payment: Payment | n
               >
                 OCR: {formatPeso(ocrAmount)}
                 {payment.ocr?.referenceNo ? ` · Ref ${payment.ocr.referenceNo}` : ""}
-                {payment.hasOcrMismatch ? " — hindi tugma sa declared amount" : " — tugma"}
+                {payment.hasOcrMismatch ? " — does not match the declared amount" : " — matches"}
               </Alert>
             ) : (
-              <Alert severity="info">Walang nabasang amount ang OCR. Pakicheck ang resibo.</Alert>
+              <Alert severity="info">OCR could not read an amount. Please check the receipt.</Alert>
             )}
             {payment.isPending ? (
               <>
                 <TextField
-                  label="Amount na ibabawas sa balance"
+                  label="Amount to deduct from balance"
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   slotProps={pesoAdornment}
                 />
                 <TextField
-                  label="Dahilan (kailangan kapag i-reject)"
-                  placeholder="hal. Malabo ang resibo / kulang ang amount"
+                  label="Reason (required to reject)"
+                  placeholder="e.g. Blurry receipt / amount is short"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                 />
