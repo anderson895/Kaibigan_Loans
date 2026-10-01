@@ -74,13 +74,23 @@ export function TermFields({
   term,
   termUnit,
   onChange,
+  tagalog = false,
 }: {
   paymentPlan: PaymentPlan;
   term: string;
   termUnit: TermUnit;
   onChange: (changes: { paymentPlan?: PaymentPlan; term?: string; termUnit?: TermUnit }) => void;
+  /** Taglish labels for the borrower-facing Request Loan form; the admin form stays in English. */
+  tagalog?: boolean;
 }) {
-  const unitLabel = termUnit === "weeks" ? "weeks" : "months";
+  const unitLabel = termUnit === "weeks" ? (tagalog ? "linggo" : "weeks") : tagalog ? "buwan" : "months";
+  const termLabel = tagalog
+    ? paymentPlan === "lump"
+      ? `Babayaran after ilang ${unitLabel}`
+      : `Ilang ${unitLabel} huhulugan`
+    : paymentPlan === "lump"
+      ? `Due after (${unitLabel})`
+      : `Number of ${unitLabel}`;
   return (
     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
       <TextField
@@ -90,13 +100,13 @@ export function TermFields({
         value={paymentPlan}
         onChange={(e) => onChange({ paymentPlan: e.target.value as PaymentPlan })}
       >
-        <MenuItem value="installment">Installments</MenuItem>
-        <MenuItem value="lump">One-time payment</MenuItem>
+        <MenuItem value="installment">{tagalog ? "Hulugan (Installment)" : "Installments"}</MenuItem>
+        <MenuItem value="lump">{tagalog ? "Isang bagsak" : "One-time payment"}</MenuItem>
       </TextField>
       <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
         <TextField
           fullWidth
-          label={paymentPlan === "lump" ? `Due after (${unitLabel})` : `Number of ${unitLabel}`}
+          label={termLabel}
           type="number"
           value={term}
           onChange={(e) => onChange({ term: e.target.value })}

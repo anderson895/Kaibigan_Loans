@@ -7,6 +7,9 @@ import { useAuth } from "@/components/AuthProvider";
 import { ErrorAlert, Loading, PageHeader } from "@/components/ui";
 import { useAdminMutations, useAdmins, useLenderContact, useSaveLenderContact } from "@/hooks/queries";
 
+/** Pre-filled for convenience (from the lender's portfolio); only stored once Save is clicked. */
+const SUGGESTED_FACEBOOK = "facebook.com/joshuapadilla895";
+
 function ContactSettings() {
   const { email: me } = useAuth();
   const contact = useLenderContact();
@@ -17,7 +20,7 @@ function ContactSettings() {
 
   useEffect(() => {
     if (!contact.data) return;
-    setMessenger(contact.data.messengerUrl);
+    setMessenger(contact.data.messengerUrl || SUGGESTED_FACEBOOK);
     setEmail(contact.data.email || me);
     setPhone(contact.data.phone);
   }, [contact.data, me]);

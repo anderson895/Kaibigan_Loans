@@ -26,17 +26,17 @@ interface RequestDetails {
 
 /** The borrowing request as plain text, ready to paste or pre-fill in Email/SMS. */
 function buildMessage(d: RequestDetails): string {
-  const unit = d.unit === "weeks" ? (d.term === 1 ? "week" : "weeks") : d.term === 1 ? "month" : "months";
-  const plan = d.plan === "lump" ? `One-time payment after ${d.term} ${unit}` : `Installments over ${d.term} ${unit}`;
+  const unit = d.unit === "weeks" ? "linggo" : "buwan";
+  const plan = d.plan === "lump" ? `Isang bagsak after ${d.term} ${unit}` : `Hulugan sa loob ng ${d.term} ${unit}`;
   return [
-    "Hi! I'd like to request a loan.",
+    "Hi po! Gusto ko pong mag-request ng loan.",
     "",
     `Amount: ${formatPeso(d.amount)}`,
     `Payment plan: ${plan}`,
-    `Send the money to: ${d.payout}`,
+    `Ipadala sa: ${d.payout}`,
     d.notes ? `Notes: ${d.notes}` : "",
     "",
-    `Name: ${d.name}`,
+    `Pangalan: ${d.name}`,
     `Email: ${d.email}`,
   ]
     .filter((line, i, all) => line !== "" || all[i - 1] !== "")
@@ -57,7 +57,8 @@ export default function RequestLoanPage() {
   const [unit, setUnit] = useState<TermUnit>("weeks");
   const [payout, setPayout] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
-  const [copied, setCopied] = useState(false);
+  // "copy" = Copy button pressed; "messenger" = copied and Messenger opened.
+  const [copied, setCopied] = useState<"copy" | "messenger" | null>(null);
 
   if (contact.isPending || me.isPending) return <Loading />;
   const lender = contact.data ?? { messengerUrl: "", email: "", phone: "" };
@@ -75,15 +76,15 @@ export default function RequestLoanPage() {
     notes: notes.trim(),
   });
 
-  const copyMessage = () =>
+  const copyMessage = (via: "copy" | "messenger") =>
     navigator.clipboard
       ?.writeText(message)
-      .then(() => setCopied(true))
-      .catch(() => setCopied(false));
+      .then(() => setCopied(via))
+      .catch(() => setCopied(null));
 
   // Messenger can't pre-fill a message for personal accounts, so copy it first, then open the chat.
   const sendViaMessenger = () => {
-    copyMessage();
+    copyMessage("messenger");
     window.open(lender.messengerUrl, "_blank", "noopener");
   };
 
@@ -91,11 +92,11 @@ export default function RequestLoanPage() {
 
   return (
     <>
-      <PageHeader title="Request Loan" subtitle="Fill in the details, then send your request by Messenger, Email or SMS." />
+      <PageHeader title="Request Loan" subtitle="Ilagay ang detalye, tapos ipadala ang request mo sa Messenger, Email o SMS." />
       <Paper sx={{ p: { xs: 2.5, md: 4 }, maxWidth: 620 }}>
         <Stack spacing={2.5}>
           <TextField
-            label="How much do you need?"
+            label="Magkano ang kailangan mo?"
             type="number"
             required
             value={amount}
@@ -106,6 +107,7 @@ export default function RequestLoanPage() {
             paymentPlan={plan}
             term={term}
             termUnit={unit}
+            tagalog
             onChange={(c) => {
               if (c.paymentPlan) setPlan(c.paymentPlan);
               if (c.term !== undefined) setTerm(c.term);
@@ -113,7 +115,7 @@ export default function RequestLoanPage() {
             }}
           />
           <TextField
-            label="Where to send the money"
+            label="Saan ipapadala ang pera"
             placeholder="GCash 0917 123 4567 — Juan D."
             required
             multiline
@@ -121,11 +123,11 @@ export default function RequestLoanPage() {
             value={payoutValue}
             onChange={(e) => setPayout(e.target.value)}
           />
-          <TextField label="Purpose / notes (optional)" multiline minRows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <TextField label="Para saan / notes (optional)" multiline minRows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
 
-          <Divider>Send request via</Divider>
+          <Divider>Ipadala ang request sa</Divider>
 
-          {!hasAnyChannel && <Alert severity="info">Your lender hasn&apos;t added their contact details yet. Please message them directly.</Alert>}
+          {!hasAnyChannel && <Alert severity="info">Wala pang contact details ang nagpapautang. I-message na lang siya nang direkta.</Alert>}
 
           <Box sx={{ display: "grid", gap: 1.5, gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" } }}>
             <Button
@@ -161,12 +163,12 @@ export default function RequestLoanPage() {
           </Box>
           {!ready && (
             <Typography variant="caption" color="text.secondary">
-              Enter the amount and where to send the money to enable the buttons.
+              Ilagay muna ang amount at kung saan ipapadala ang pera para magamit ang mga button.
             </Typography>
           )}
-          {copied && (
+          {copied === "messenger" && (
             <Alert severity="success">
-              Request copied! Paste it in the Messenger chat that just opened (long-press → Paste, or Ctrl+V).
+              Na-copy na ang request mo! I-paste ito sa Messenger chat na nagbukas (pindutin nang matagal → Paste, o Ctrl+V).
             </Alert>
           )}
 
@@ -174,10 +176,10 @@ export default function RequestLoanPage() {
             <Box>
               <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  Your request
+                  Ang request mo
                 </Typography>
-                <Button size="small" onClick={copyMessage}>
-                  Copy
+                <Button size="small" onClick={() => copyMessage("copy")}>
+                  {copied === "copy" ? "Na-copy!" : "Copy"}
                 </Button>
               </Stack>
               <Box component="pre" sx={{ m: 0, p: 2, bgcolor: "#f1f5fb", borderRadius: 2, fontFamily: "inherit", fontSize: 14, whiteSpace: "pre-wrap" }}>
@@ -188,7 +190,7 @@ export default function RequestLoanPage() {
 
           {toE164(lender.phone) && (
             <Button href={`tel:${toE164(lender.phone)}`} startIcon={<CallOutlined />} sx={{ alignSelf: "flex-start" }}>
-              Or call {lender.phone}
+              O tumawag sa {lender.phone}
             </Button>
           )}
         </Stack>
