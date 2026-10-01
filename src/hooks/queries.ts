@@ -153,6 +153,15 @@ export function useReviewRequest() {
   });
 }
 
+export function useUpdateLoanTerms() {
+  const { email } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ loan, terms }: { loan: Loan; terms: LoanTermsInput }) => loanService.updateLoanTerms(loan, terms, email),
+    onSuccess: () => invalidate(keys.loans, keys.activity),
+  });
+}
+
 export function useDeleteLoan() {
   const invalidate = useInvalidate();
   return useMutation({ mutationFn: (id: string) => loanService.deleteLoan(id), onSuccess: () => invalidate(keys.loans) });

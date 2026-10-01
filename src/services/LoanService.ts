@@ -146,6 +146,15 @@ export class LoanService {
     await batch.commit();
   }
 
+  /** Changes the terms of a loan that has no approved payments yet (schedule is recalculated). */
+  async updateLoanTerms(loan: Loan, terms: LoanTermsInput, actorEmail: string): Promise<void> {
+    const updated = loan.withTerms(terms);
+    const batch = writeBatch(this.db);
+    batch.set(this.loans.docRef(loan.id), this.loans.toData(updated));
+    this.logActivity(batch, "loan_updated", `Loan terms updated for ${loan.borrowerName}`, loan.id, loan.borrowerName, updated.totalAmount, actorEmail);
+    await batch.commit();
+  }
+
   async deleteLoan(id: string): Promise<void> {
     await this.loans.delete(id);
   }

@@ -126,6 +126,55 @@ describe("Loan payments", () => {
   });
 });
 
+describe("Editing loan terms", () => {
+  const disbursement = { receiptUrl: "https://x/r.png", receiptPublicId: "r", referenceNo: "123456", sentOn: "2026-10-01", uploadedAt: 1 };
+  const original = Loan.create(
+    { ...base, principal: 2000, interestValue: 400, term: 1, termUnit: "months", startDate: "2026-10-01" },
+    "loan-1",
+  ).withDisbursement(disbursement);
+
+  it("switches a 1-month loan to 4 weekly installments of ₱600", () => {
+    const edited = original.withTerms({
+      principal: 2000,
+      interestType: "fixed",
+      interestValue: 400,
+      paymentPlan: "installment",
+      term: 4,
+      termUnit: "weeks",
+      startDate: "2026-10-01",
+    });
+    expect(edited.totalAmount).toBe(2400);
+    expect(edited.balance).toBe(2400);
+    expect(edited.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
+      ["2026-10-08", 600],
+      ["2026-10-15", 600],
+      ["2026-10-22", 600],
+      ["2026-10-29", 600],
+    ]);
+  });
+
+  it("keeps id, borrower, creation date and proof of send", () => {
+    const edited = original.withTerms({ ...base, principal: 3000, term: 2 });
+    expect(edited.id).toBe("loan-1");
+    expect(edited.borrowerEmail).toBe(original.borrowerEmail);
+    expect(edited.createdAt).toBe(original.createdAt);
+    expect(edited.disbursement).toEqual(disbursement);
+    expect(edited.storedStatus).toBe("ongoing");
+  });
+
+  it("is blocked once a payment was approved", () => {
+    const paid = original.applyPayment(600, "2026-10-08");
+    expect(original.canEditTerms).toBe(true);
+    expect(paid.canEditTerms).toBe(false);
+    expect(() => paid.withTerms({ ...base })).toThrow(/approved payments/);
+  });
+
+  it("is blocked for requests and paid loans", () => {
+    expect(() => Loan.create({ ...base, asRequest: true }).withTerms({ ...base })).toThrow();
+    expect(Loan.create({ ...base, asRequest: true }).canEditTerms).toBe(false);
+  });
+});
+
 describe("Loan status", () => {
   it("is overdue when an unpaid installment is past due", () => {
     const loan = Loan.create(base);

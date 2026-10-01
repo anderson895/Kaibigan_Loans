@@ -230,6 +230,31 @@ export class Loan {
     return new Loan({ ...this.props, status: "rejected" });
   }
 
+  /** Editing is only safe before any payment was applied — otherwise the schedule history would be lost. */
+  get canEditTerms(): boolean {
+    return this.isActive && this.props.amountPaid === 0;
+  }
+
+  /**
+   * Returns the loan with new terms: interest, total, balance and schedule are recalculated.
+   * Keeps the borrower, payout details, proof of send and creation date.
+   */
+  withTerms(terms: Omit<NewLoanInput, "borrowerId" | "borrowerName" | "borrowerEmail" | "asRequest" | "amountPaid">): Loan {
+    if (!this.isActive) throw new Error("Only active loans can be edited.");
+    if (this.props.amountPaid > 0) throw new Error("This loan already has approved payments, so its terms can no longer be edited.");
+    const rebuilt = Loan.create(
+      {
+        ...terms,
+        borrowerId: this.props.borrowerId,
+        borrowerName: this.props.borrowerName,
+        borrowerEmail: this.props.borrowerEmail,
+        payoutDetails: terms.payoutDetails ?? this.props.payoutDetails,
+      },
+      this.props.id,
+    );
+    return new Loan({ ...rebuilt.toProps(), createdAt: this.props.createdAt, disbursement: this.props.disbursement });
+  }
+
   withDisbursement(disbursement: Disbursement): Loan {
     if (this.props.status === "pending" || this.props.status === "rejected") {
       throw new Error("Approve the loan request before uploading proof of send.");

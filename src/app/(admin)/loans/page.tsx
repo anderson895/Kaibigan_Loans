@@ -2,6 +2,7 @@
 import Add from "@mui/icons-material/Add";
 import ArrowBack from "@mui/icons-material/ArrowBack";
 import DeleteOutline from "@mui/icons-material/DeleteOutlined";
+import EditOutlined from "@mui/icons-material/EditOutlined";
 import Search from "@mui/icons-material/Search";
 import {
   Box,
@@ -12,13 +13,14 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { DisbursementSection } from "@/components/DisbursementPanel";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
-import { NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
+import { EditLoanDialog, NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
 import { LoansTable } from "@/components/LoansTable";
 import { ReviewPaymentDialog } from "@/components/PaymentDialogs";
 import { ErrorAlert, Loading, PageHeader } from "@/components/ui";
@@ -41,6 +43,7 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const deleteLoan = useDeleteLoan();
   const [reviewing, setReviewing] = useState<Payment | null>(null);
   const [reviewRequest, setReviewRequest] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const remove = () => {
     if (confirm(`Delete ${loan.borrowerName}'s loan? This cannot be undone.`)) {
@@ -61,6 +64,21 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
           <Button variant="contained" size="small" onClick={() => setReviewRequest(true)}>
             Review Request
           </Button>
+        )}
+        {loan.isActive && (
+          <Tooltip title={loan.canEditTerms ? "Edit loan" : "Can't edit after a payment was approved"}>
+            <span>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<EditOutlined />}
+                disabled={!loan.canEditTerms}
+                onClick={() => setEditing(true)}
+              >
+                Edit
+              </Button>
+            </span>
+          </Tooltip>
         )}
         <IconButton size="small" color="error" onClick={remove} aria-label="Delete loan">
           <DeleteOutline />
@@ -89,6 +107,7 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
 
       <ReviewPaymentDialog payment={reviewing} onClose={() => setReviewing(null)} />
       <ReviewRequestDialog loan={reviewRequest ? loan : null} onClose={() => setReviewRequest(false)} />
+      {editing && <EditLoanDialog loan={loan} onClose={() => setEditing(false)} />}
     </Paper>
   );
 }

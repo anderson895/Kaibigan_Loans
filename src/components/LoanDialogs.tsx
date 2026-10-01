@@ -15,7 +15,7 @@ import { useState } from "react";
 import type { Borrower } from "@/domain/Borrower";
 import type { Loan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
-import { useBorrowers, useCreateLoan, useReviewRequest } from "@/hooks/queries";
+import { useBorrowers, useCreateLoan, useReviewRequest, useUpdateLoanTerms } from "@/hooks/queries";
 import { ProofOfSendFields, type ProofOfSendInput } from "./DisbursementPanel";
 import { emptyLoanForm, LoanForm, previewLoan, toTerms, type LoanFormValues } from "./LoanForm";
 import { ErrorAlert } from "./ui";
@@ -96,6 +96,53 @@ export function NewLoanDialog({
 }
 
 /** Admin sets the final terms (interest, term) for a borrower's request, or declines it. */
+/** The form values for an existing loan, so Edit Loan opens pre-filled. */
+function formValuesOf(loan: Loan): LoanFormValues {
+  return {
+    ...emptyLoanForm(),
+    principal: String(loan.principal),
+    interestType: loan.interestType,
+    interestValue: loan.interestType === "none" ? "" : String(loan.interestValue),
+    paymentPlan: loan.paymentPlan,
+    term: String(loan.term),
+    termUnit: loan.termUnit,
+    startDate: loan.startDate,
+    notes: loan.notes,
+  };
+}
+
+/** Edit the terms of a loan that has no approved payments yet. Pass a new `key` to reset. */
+export function EditLoanDialog({ loan, onClose }: { loan: Loan; onClose: () => void }) {
+  const update = useUpdateLoanTerms();
+  const [values, setValues] = useState<LoanFormValues>(() => formValuesOf(loan));
+  const preview = previewLoan(values);
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit Loan — {loan.borrowerName}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            The interest, total, balance and payment schedule will be recalculated. The proof of send stays attached.
+          </Typography>
+          <LoanForm values={values} onChange={setValues} />
+          <ErrorAlert error={update.error} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          disabled={!preview || update.isPending}
+          onClick={() => update.mutate({ loan, terms: toTerms(values) }, { onSuccess: onClose })}
+        >
+          {update.isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function ReviewRequestDialog({ loan, onClose }: { loan: Loan | null; onClose: () => void }) {
   const review = useReviewRequest();
   const [values, setValues] = useState<LoanFormValues | null>(null);
