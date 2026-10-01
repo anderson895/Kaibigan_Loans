@@ -5,7 +5,7 @@ import type { Loan } from "@/domain/Loan";
 import { useAuth } from "@/components/AuthProvider";
 import type { LoanTermsInput } from "@/services/LoanService";
 import type { SubmitPaymentInput } from "@/services/PaymentService";
-import { authService, loanService, paymentService } from "@/services/container";
+import { authService, lenderContactService, loanService, paymentService } from "@/services/container";
 
 export const keys = {
   loans: ["loans"] as const,
@@ -17,6 +17,7 @@ export const keys = {
   loanPayments: (loanId: string) => ["payments", "loan", loanId] as const,
   activity: ["activity"] as const,
   admins: ["admins"] as const,
+  lenderContact: ["lenderContact"] as const,
 };
 
 // ---- Queries ----
@@ -51,6 +52,17 @@ export function useLoanPayments(loanId: string | null, asBorrower = false) {
 }
 
 export const useActivity = () => useQuery({ queryKey: keys.activity, queryFn: () => loanService.recentActivity(8) });
+
+export const useLenderContact = () =>
+  useQuery({ queryKey: keys.lenderContact, queryFn: () => lenderContactService.get() });
+
+export function useSaveLenderContact() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (input: { messenger: string; email: string; phone: string }) => lenderContactService.save(input),
+    onSuccess: () => invalidate(keys.lenderContact),
+  });
+}
 
 export const useAdmins = () => useQuery({ queryKey: keys.admins, queryFn: () => authService.listAdmins() });
 

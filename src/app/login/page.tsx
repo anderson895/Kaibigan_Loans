@@ -38,7 +38,7 @@ function Showcase() {
         </Box>
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 2, fontSize: 17, maxWidth: 380, lineHeight: 1.5 }}>
-        Mabilis, ligtas at maaasahang loan services para sa mga Pilipinong tulad mo.
+        Mabilis, ligtas at maaasahang loan services para sa mga Kaibigang tulad mo.
       </Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "center", mt: 4, gap: 2 }}>

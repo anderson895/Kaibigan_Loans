@@ -28,6 +28,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Lender contact details (Messenger, email, phone) — public, shown on the landing page and Request Loan.
+    match /meta/contact {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /admins/{email} {
       allow get: if signedIn() && email == myEmail();
       allow list: if isAdmin();

@@ -1,7 +1,9 @@
 "use client";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import BoltOutlined from "@mui/icons-material/BoltOutlined";
+import CallOutlined from "@mui/icons-material/CallOutlined";
 import ChatOutlined from "@mui/icons-material/ChatOutlined";
+import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import CloudUploadOutlined from "@mui/icons-material/CloudUploadOutlined";
 import GroupsOutlined from "@mui/icons-material/GroupsOutlined";
 import HandshakeOutlined from "@mui/icons-material/HandshakeOutlined";
@@ -15,7 +17,9 @@ import { Avatar, Box, Button, Container, Link as MuiLink, Stack, Typography } fr
 import { Dancing_Script } from "next/font/google";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { useLenderContact } from "@/hooks/queries";
 import { IMAGES } from "@/lib/assets";
+import { DEFAULT_LENDER_PHONE, toE164 } from "@/services/LenderContactService";
 import { Brand } from "./AppShell";
 import { useAuth } from "./AuthProvider";
 import { homeFor } from "./RoleGuard";
@@ -276,21 +280,55 @@ function About() {
 }
 
 function Contact() {
+  const { data: lender } = useLenderContact();
+  const phone = lender?.phone ?? DEFAULT_LENDER_PHONE;
+  const tel = toE164(phone);
+  const channels = [
+    lender?.messengerUrl && { icon: <ChatOutlined />, label: "Messenger", value: "Chat with us", href: lender.messengerUrl, external: true },
+    tel && { icon: <CallOutlined />, label: "Call / Text", value: phone, href: `tel:${tel}`, external: false },
+    lender?.email && { icon: <EmailOutlined />, label: "Email", value: lender.email, href: `mailto:${lender.email}`, external: false },
+  ].filter(Boolean) as { icon: ReactNode; label: string; value: string; href: string; external: boolean }[];
+
   return (
     <Container id="contact" maxWidth="md" sx={{ py: { xs: 7, md: 9 }, textAlign: "center", scrollMarginTop: 70 }}>
       <SectionTitle title="Contact" subtitle="May tanong o gustong mag-loan?" />
-      <Stack spacing={2.5} sx={{ alignItems: "center" }}>
-        <IconTile>
-          <ChatOutlined />
-        </IconTile>
-        <Typography color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.7 }}>
-          I-message lang ang admin sa Messenger, o mag-login at gamitin ang <strong>Request Loan</strong>. Ibigay ang iyong
-          email sa admin para ma-link ang iyong account.
-        </Typography>
-        <Button component={Link} href="/login" variant="contained" endIcon={<ArrowForward />} sx={{ borderRadius: 99, px: 4 }}>
-          Mag Login
-        </Button>
-      </Stack>
+      <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: `repeat(${Math.max(channels.length, 1)}, minmax(0, 260px))` }, justifyContent: "center", mb: 4 }}>
+        {channels.map((c) => (
+          <Box
+            key={c.label}
+            component="a"
+            href={c.href}
+            target={c.external ? "_blank" : undefined}
+            rel={c.external ? "noopener" : undefined}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              p: 3,
+              bgcolor: "background.paper",
+              border: "1px solid #e5e9f2",
+              borderRadius: 4,
+              textDecoration: "none",
+              color: "inherit",
+              transition: "box-shadow .2s, transform .2s",
+              "&:hover": { boxShadow: "0 12px 30px rgba(29,110,242,0.12)", transform: "translateY(-2px)" },
+            }}
+          >
+            <IconTile size={48}>{c.icon}</IconTile>
+            <Typography variant="body2" color="text.secondary">
+              {c.label}
+            </Typography>
+            <Typography sx={{ fontWeight: 700, wordBreak: "break-word" }}>{c.value}</Typography>
+          </Box>
+        ))}
+      </Box>
+      <Typography color="text.secondary" sx={{ maxWidth: 520, mx: "auto", lineHeight: 1.7, mb: 2.5 }}>
+        Mag-register at gamitin ang <strong>Request Loan</strong> para maipadala ang iyong request sa Messenger, Email o SMS.
+      </Typography>
+      <Button component={Link} href="/login" variant="contained" endIcon={<ArrowForward />} sx={{ borderRadius: 99, px: 4 }}>
+        Mag Login
+      </Button>
     </Container>
   );
 }
