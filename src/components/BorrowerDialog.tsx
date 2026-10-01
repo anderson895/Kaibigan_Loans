@@ -29,12 +29,12 @@ export function BorrowerDialog({ open, borrower, onClose }: { open: boolean; bor
         <Stack spacing={2} sx={{ pt: 1 }}>
           <TextField label="Pangalan" required value={values.name} onChange={set("name")} />
           <TextField
-            label="Google email (Gmail)"
+            label="Email na gamit sa pag-login"
             required
             type="email"
             value={values.email}
             onChange={set("email")}
-            helperText="Ito ang gagamitin niya sa pag-login para makita ang loan niya"
+            helperText="Gmail (kung Google sign-in) o ang email na ni-register niya"
           />
           <TextField label="Phone / Messenger" value={values.phone} onChange={set("phone")} />
           <TextField

@@ -42,7 +42,7 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { icon: <Login />, title: "Mag-sign in", text: "Gamitin ang iyong Google account. Walang password na kailangang tandaan." },
+  { icon: <Login />, title: "Mag-sign in", text: "Gumawa ng account gamit ang email, o mag-sign in gamit ang Google." },
   { icon: <ReceiptLongOutlined />, title: "Mag-request ng Loan", text: "Ilagay kung magkano, kailan babayaran, at saan ipapadala ang pera." },
   { icon: <CloudUploadOutlined />, title: "Mag-upload ng Payment", text: "I-upload ang screenshot ng GCash o bank receipt. Babasahin ito ng system." },
   { icon: <HowToRegOutlined />, title: "Tingnan ang Balance", text: "Kapag na-approve, automatic na mababawas sa iyong balance." },
@@ -285,7 +285,7 @@ function Contact() {
         </IconTile>
         <Typography color="text.secondary" sx={{ maxWidth: 520, lineHeight: 1.7 }}>
           I-message lang ang admin sa Messenger, o mag-login at gamitin ang <strong>Request Loan</strong>. Ibigay ang iyong
-          Gmail sa admin para ma-link ang iyong account.
+          email sa admin para ma-link ang iyong account.
         </Typography>
         <Button component={Link} href="/login" variant="contained" endIcon={<ArrowForward />} sx={{ borderRadius: 99, px: 4 }}>
           Mag Login

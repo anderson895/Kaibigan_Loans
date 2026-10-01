@@ -28,7 +28,7 @@ export function NotLinkedCard() {
       <Typography variant="h5">Hindi pa naka-link ang account mo</Typography>
       <Typography color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.7 }}>
         Para makita mo ang iyong loan at makapag-upload ng payment, kailangan ka munang i-add ng nagpautang sa kanyang
-        Contacts gamit ang Gmail na ito:
+        Contacts gamit ang email na ito:
       </Typography>
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -41,7 +41,7 @@ export function NotLinkedCard() {
         </Button>
       </Stack>
       <Box component="ol" sx={{ textAlign: "left", color: "text.secondary", mt: 3, mb: 0, pl: 3, lineHeight: 1.9 }}>
-        <li>I-copy ang Gmail sa itaas at i-send sa nagpautang (hal. sa Messenger).</li>
+        <li>I-copy ang email sa itaas at i-send sa nagpautang (hal. sa Messenger).</li>
         <li>Hintayin na ma-add ka niya sa Contacts.</li>
         <li>I-refresh ang page na ito — lalabas na ang iyong mga loan.</li>
       </Box>

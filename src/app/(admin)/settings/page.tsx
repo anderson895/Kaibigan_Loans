@@ -42,7 +42,7 @@ export default function SettingsPage() {
           </List>
         )}
         <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-          <TextField size="small" fullWidth placeholder="Gmail ng bagong admin" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <TextField size="small" fullWidth placeholder="Email ng bagong admin" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Button variant="contained" disabled={!email || add.isPending} onClick={() => add.mutate(email, { onSuccess: () => setEmail("") })}>
             Add
           </Button>

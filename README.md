@@ -129,7 +129,7 @@ CLOUDINARY_API_SECRET=...            # SERVER ONLY. Huwag lagyan ng NEXT_PUBLIC_
 > ⚠️ Ang `NEXT_PUBLIC_*` ay makikita ng browser. Ligtas iyon para sa Firebase web config dahil ang Firestore rules ang nagpoprotekta sa data. **Hindi** ligtas iyon para sa `CLOUDINARY_API_SECRET`.
 
 ### 4. Firebase Console
-1. **Authentication → Sign-in method →** i-enable ang **Google**.
+1. **Authentication → Sign-in method →** i-enable ang **Google** at **Email/Password**.
 2. **Authentication → Settings → Authorized domains →** idagdag ang production domain mo (hal. `kaibigan-loans.<account>.workers.dev`).
 3. **Firestore Database →** Create database (production mode).
 4. I-deploy ang security rules at indexes:
@@ -295,6 +295,7 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
 
 ## Security
 
+- **Login:** Google Sign-in, o email + password (may Remember me at Forgot password). Ang email/password accounts ay kailangang **i-verify ang email** bago makapasok, para walang makagamit ng email ng ibang tao para makita ang loan nito.
 - **Firestore rules** (`firestore.rules`) ang tunay na proteksyon. Ang client-side route guard ay para lang sa UX.
   - Nababasa lang ng borrower ang `loans`, `payments` at `borrowers` na tugma sa **sariling email** niya.
   - Ang kaya lang gawin ng borrower: gumawa ng `pending` na payment para sa *sarili niyang aktibong* loan, at `pending` na loan request (walang tubo, max ₱100,000).

@@ -20,7 +20,7 @@ export class Borrower {
     const name = input.name.trim();
     const email = input.email.trim().toLowerCase();
     if (!name) throw new Error("Kailangan ang pangalan");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Kailangan ng tamang Gmail address");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("Kailangan ng tamang email address");
     return new Borrower({ ...input, name, email, id: "", createdAt: Date.now() });
   }
 

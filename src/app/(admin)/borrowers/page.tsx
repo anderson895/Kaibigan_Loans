@@ -24,7 +24,7 @@ export default function BorrowersPage() {
     <>
       <PageHeader
         title="Contacts"
-        subtitle="Ang mga kaibigang pinapautang mo. Ang Gmail nila ang gagamitin sa pag-login."
+        subtitle="Ang mga kaibigang pinapautang mo. Ang email nila ang gagamitin sa pag-login."
         action={
           <Button variant="contained" startIcon={<Add />} onClick={() => openDialog(null)}>
             New Contact

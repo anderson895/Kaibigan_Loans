@@ -1,19 +1,20 @@
 "use client";
-import ArrowBack from "@mui/icons-material/ArrowBack";
 import Bolt from "@mui/icons-material/Bolt";
-import Google from "@mui/icons-material/Google";
 import Groups from "@mui/icons-material/Groups";
 import VerifiedUser from "@mui/icons-material/VerifiedUser";
-import { Alert, Avatar, Box, Button, CircularProgress, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Avatar, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { Caveat_Brush } from "next/font/google";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Brand } from "@/components/AppShell";
+import { ForgotPasswordForm, LoginForm, SignupForm, VerifyEmailPanel } from "@/components/AuthForms";
 import { useAuth } from "@/components/AuthProvider";
 import { homeFor } from "@/components/RoleGuard";
 import { IMAGES } from "@/lib/assets";
 import { authService } from "@/services/container";
+
+type Mode = "login" | "signup" | "forgot";
 
 const brush = Caveat_Brush({ subsets: ["latin"], weight: "400" });
 
@@ -79,15 +80,17 @@ function Showcase() {
 }
 
 function LoginView() {
-  const { user, role, loading, refreshRole } = useAuth();
+  const { user, role, loading, verified, refreshRole } = useAuth();
   const router = useRouter();
-  const signup = useSearchParams().get("mode") === "signup";
+  const params = useSearchParams();
+  const [mode, setMode] = useState<Mode>(params.get("mode") === "signup" ? "signup" : "login");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading || !user || !verified) return;
     if (role === "admin") return router.replace(homeFor(role));
     // A signed-in non-admin: offer first-time admin setup if nobody has claimed it yet.
     authService
@@ -96,7 +99,7 @@ function LoginView() {
       .catch((e) =>
         setError(`Hindi ma-check ang admin setup (${e instanceof Error ? e.message : e}). Naka-deploy na ba ang Firestore rules?`),
       );
-  }, [loading, user, role, router]);
+  }, [loading, user, verified, role, router]);
 
   const run = async (action: () => Promise<unknown>) => {
     setBusy(true);
@@ -110,63 +113,69 @@ function LoginView() {
     }
   };
 
-  const card = needsSetup && user ? (
-    <Stack spacing={2}>
-      <Typography variant="h5">First-time setup</Typography>
-      <Typography color="text.secondary">
-        Wala pang admin. Gawing admin ang <strong>{user.email}</strong>? Isang beses lang ito pwedeng gawin.
-      </Typography>
-      <Button
-        variant="contained"
-        size="large"
-        disabled={busy}
-        sx={{ borderRadius: 99, py: 1.4 }}
-        onClick={() =>
-          run(async () => {
-            await authService.claimFirstAdmin(user);
-            await refreshRole();
-            router.replace("/dashboard");
-          })
-        }
-      >
-        Oo, gawin akong admin
-      </Button>
-      <Button variant="outlined" sx={{ borderRadius: 99, py: 1.2 }} onClick={() => router.replace(homeFor(role))}>
-        Hindi, borrower ako
-      </Button>
-    </Stack>
-  ) : (
-    <Stack spacing={3}>
-      <Box>
-        <Typography sx={{ fontSize: { xs: 30, sm: 36 }, fontWeight: 800, lineHeight: 1.2 }}>
-          {signup ? "Gumawa ng Account" : "Welcome Back!"}
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1, fontSize: 17 }}>
-          {signup ? "Ang Google account mo na ang magiging account mo dito." : "Mag-log in para i-access ang iyong account."}
-        </Typography>
+  const switchMode = (next: Mode) => {
+    setMode(next);
+    router.replace(next === "signup" ? "/login?mode=signup" : "/login", { scroll: false });
+  };
+
+  let card: ReactNode;
+  if (loading) {
+    card = (
+      <Box sx={{ display: "grid", placeItems: "center", py: 8 }}>
+        <CircularProgress />
       </Box>
-      <Button
-        variant="contained"
-        size="large"
-        startIcon={busy || loading ? <CircularProgress size={18} color="inherit" /> : <Google />}
-        disabled={busy || loading}
-        onClick={() => run(() => authService.signInWithGoogle())}
-        sx={{ borderRadius: 99, py: 1.6, fontSize: 17 }}
-      >
-        {signup ? "Sign up with Google" : "Sign in with Google"}
-      </Button>
-      <Divider sx={{ color: "text.secondary", fontSize: 14 }}>o</Divider>
-      <Button component={Link} href="/" variant="outlined" size="large" startIcon={<ArrowBack />} sx={{ borderRadius: 99, py: 1.4, borderWidth: 1.5 }}>
-        Bumalik sa Home
-      </Button>
-      <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center" }}>
-        {signup ? "May account na? " : "Wala pang account? "}
-        <Box component={Link} href={signup ? "/login" : "/login?mode=signup"} sx={{ color: "primary.main", fontWeight: 600 }}>
-          {signup ? "Mag Login" : "Mag Sign Up"}
-        </Box>
-      </Typography>
-    </Stack>
-  );
+    );
+  } else if (user && !verified) {
+    card = <VerifyEmailPanel />;
+  } else if (user && needsSetup) {
+    card = (
+      <Stack spacing={2}>
+        <Typography variant="h5">First-time setup</Typography>
+        <Typography color="text.secondary">
+          Wala pang admin. Gawing admin ang <strong>{user.email}</strong>? Isang beses lang ito pwedeng gawin.
+        </Typography>
+        <Button
+          variant="contained"
+          size="large"
+          disabled={busy}
+          sx={{ borderRadius: 99, py: 1.4 }}
+          onClick={() =>
+            run(async () => {
+              await authService.claimFirstAdmin(user);
+              await refreshRole();
+              router.replace("/dashboard");
+            })
+          }
+        >
+          Oo, gawin akong admin
+        </Button>
+        <Button variant="outlined" sx={{ borderRadius: 99, py: 1.2 }} onClick={() => router.replace(homeFor(role))}>
+          Hindi, borrower ako
+        </Button>
+      </Stack>
+    );
+  } else if (user) {
+    // Signed in and verified: the effect above is redirecting.
+    card = (
+      <Box sx={{ display: "grid", placeItems: "center", py: 8 }}>
+        <CircularProgress />
+      </Box>
+    );
+  } else if (mode === "signup") {
+    card = <SignupForm onLogin={() => switchMode("login")} />;
+  } else if (mode === "forgot") {
+    card = <ForgotPasswordForm initialEmail={forgotEmail} onBack={() => switchMode("login")} />;
+  } else {
+    card = (
+      <LoginForm
+        onSignup={() => switchMode("signup")}
+        onForgot={(email) => {
+          setForgotEmail(email);
+          setMode("forgot");
+        }}
+      />
+    );
+  }
 
   return (
     <Box sx={{ position: "relative", minHeight: "100vh", bgcolor: "#f6f9ff", overflow: "hidden" }}>
@@ -224,7 +233,7 @@ function LoginView() {
             boxShadow: "0 24px 60px rgba(29,110,242,0.10)",
           }}
         >
-          <Box sx={{ mb: 4 }}>
+          <Box component={Link} href="/" sx={{ display: "inline-block", mb: 4, textDecoration: "none" }}>
             <Brand onLight />
           </Box>
           {card}
