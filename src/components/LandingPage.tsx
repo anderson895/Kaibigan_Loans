@@ -164,12 +164,12 @@ function Hero() {
           >
             Tiwala. Kaibigan.
             <Box component="span" sx={{ display: "block", color: "primary.main", whiteSpace: { md: "nowrap" } }}>
-              Mas Madaling Utang.
+              Mas Madaling Loan.
             </Box>
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 3, maxWidth: 500, fontSize: 17, lineHeight: 1.7 }}>
-            Ang Kaibigan Loans ay isang simple at secure na platform kung saan maaari kang magpautang, magbayad, at
-            subaybayan ang iyong utang — lahat sa iisang lugar.
+            Ang Kaibigan Loans is a simple and secure platform where you can lend money, make payments, and track your loans with your friends. No more confusion, just trust and transparency.
+
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 4 }}>
             <Button
