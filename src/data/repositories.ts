@@ -1,4 +1,4 @@
-import { orderBy, where, limit, type Firestore } from "firebase/firestore";
+import { getDoc, orderBy, where, limit, startAfter, type DocumentData, type Firestore, type QueryConstraint } from "firebase/firestore";
 import { Borrower, type BorrowerProps } from "@/domain/Borrower";
 import { Loan, type LoanProps } from "@/domain/Loan";
 import { Payment, type PaymentProps } from "@/domain/Payment";
@@ -66,6 +66,7 @@ export type ActivityType =
   | "loan_created"
   | "loan_disbursed"
   | "loan_updated"
+  | "loan_deleted"
   | "loan_requested"
   | "request_approved"
   | "request_rejected"
@@ -73,7 +74,18 @@ export type ActivityType =
   | "payment_approved"
   | "payment_recorded"
   | "payment_deleted"
-  | "payment_rejected";
+  | "payment_rejected"
+  | "borrower_registered"
+  | "borrower_created"
+  | "borrower_updated"
+  | "borrower_deleted"
+  | "signed_in"
+  | "profile_updated"
+  | "password_changed"
+  | "admin_claimed"
+  | "admin_added"
+  | "admin_removed"
+  | "contact_updated";
 
 export interface ActivityProps {
   id: string;
@@ -82,11 +94,19 @@ export interface ActivityProps {
   loanId: string;
   borrowerName: string;
   amount: number | null;
+  /** Who did it: the signed-in user's email. */
   actorEmail: string;
   createdAt: number;
 }
 
-/** Activity entries are plain records, so the entity is its props. */
+/** A new entry. `loanId`, `borrowerName` and `amount` only apply to some actions. */
+export type NewActivity = Pick<ActivityProps, "type" | "message" | "actorEmail"> &
+  Partial<Pick<ActivityProps, "loanId" | "borrowerName" | "amount">>;
+
+/**
+ * The activity collection doubles as the audit log: every action by an admin or a borrower adds an
+ * entry, and entries are never edited or deleted (see firestore.rules).
+ */
 export class ActivityRepository extends BaseRepository<ActivityProps, ActivityProps> {
   constructor(db: Firestore) {
     super(db, "activity");
@@ -94,7 +114,24 @@ export class ActivityRepository extends BaseRepository<ActivityProps, ActivityPr
   protected toEntity(props: ActivityProps) { return props; }
   protected toProps(entity: ActivityProps) { return entity; }
 
+  /** Document data for a new entry, to write inside a batch or transaction. */
+  entry(input: NewActivity): DocumentData {
+    return { loanId: "", borrowerName: "", amount: null, ...input, createdAt: Date.now() };
+  }
+
+  /** Adds an entry on its own (for actions that are not a batch or transaction). */
+  async log(input: NewActivity): Promise<void> {
+    await this.create({ id: "", ...this.entry(input) } as ActivityProps);
+  }
+
   recent(count = 8) {
     return this.list(orderBy("createdAt", "desc"), limit(count));
+  }
+
+  /** Newest first, `count` at a time; pass the last entry's id to get the page after it. */
+  async page(count: number, afterId?: string): Promise<ActivityProps[]> {
+    const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
+    if (afterId) constraints.push(startAfter(await getDoc(this.docRef(afterId))));
+    return this.list(...constraints, limit(count));
   }
 }

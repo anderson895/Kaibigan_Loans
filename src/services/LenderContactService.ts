@@ -1,4 +1,5 @@
-import { doc, getDoc, setDoc, type Firestore } from "firebase/firestore";
+import { doc, getDoc, writeBatch, type Firestore } from "firebase/firestore";
+import type { ActivityRepository } from "@/data/repositories";
 
 export interface LenderContact {
   /** Normalized https://m.me/<id> link, or "" when not set. */
@@ -66,7 +67,10 @@ export function toMailtoUrl(email: string, subject: string, body: string): strin
 
 /** The lender's contact details shown to borrowers, stored at meta/contact (admin-writable). */
 export class LenderContactService {
-  constructor(private readonly db: Firestore) {}
+  constructor(
+    private readonly db: Firestore,
+    private readonly activity: ActivityRepository,
+  ) {}
 
   private get ref() {
     return doc(this.db, "meta", "contact");
@@ -81,11 +85,14 @@ export class LenderContactService {
     };
   }
 
-  async save(input: { messenger: string; email: string; phone: string }): Promise<LenderContact> {
+  async save(input: { messenger: string; email: string; phone: string }, actorEmail: string): Promise<LenderContact> {
     const phone = input.phone.trim();
     if (phone && !toE164(phone)) throw new Error("Enter a valid mobile number (e.g. 0945-445-4744).");
     const contact = { messengerUrl: toMessengerUrl(input.messenger), email: normalizeEmail(input.email), phone };
-    await setDoc(this.ref, contact);
+    const batch = writeBatch(this.db);
+    batch.set(this.ref, contact);
+    batch.set(this.activity.newDocRef(), this.activity.entry({ type: "contact_updated", message: "Contact details updated", actorEmail }));
+    await batch.commit();
     return contact;
   }
 }

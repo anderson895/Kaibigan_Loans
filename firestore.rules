@@ -18,6 +18,17 @@ service cloud.firestore {
     function setupDone() {
       return exists(/databases/$(database)/documents/meta/setup);
     }
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 100;
+    }
+    // My Profile: a borrower who renames themselves updates the name copied onto their own loans and
+    // payments, and nothing else.
+    function renamesSelfOnly() {
+      return signedIn()
+        && resource.data.borrowerEmail == myEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['borrowerName'])
+        && validName(request.resource.data.borrowerName);
+    }
 
     // First sign-in after deploy claims admin (admins/{email} + meta/setup in one batch).
     match /meta/setup {
@@ -45,7 +56,14 @@ service cloud.firestore {
 
     match /borrowers/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.email == myEmail());
-      allow update, delete: if isAdmin();
+      allow delete: if isAdmin();
+      // Borrowers may change only their own name (My Profile); the rest is up to the admin.
+      allow update: if isAdmin() || (
+        signedIn()
+        && resource.data.email == myEmail()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && validName(request.resource.data.name)
+      );
       // Registered users create their own profile (doc id = their uid) — no manual "add contact" step.
       allow create: if isAdmin() || (
         signedIn()
@@ -60,7 +78,8 @@ service cloud.firestore {
 
     match /loans/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.borrowerEmail == myEmail());
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || renamesSelfOnly();
+      allow delete: if isAdmin();
       // Admins create any loan; borrowers may only file a pending request for themselves.
       allow create: if isAdmin() || (
         signedIn()
@@ -77,7 +96,8 @@ service cloud.firestore {
 
     match /payments/{id} {
       allow read: if isAdmin() || (signedIn() && resource.data.borrowerEmail == myEmail());
-      allow update, delete: if isAdmin();
+      allow update: if isAdmin() || renamesSelfOnly();
+      allow delete: if isAdmin();
       // Borrowers submit pending payments for their own active loans only; approval is admin-only.
       allow create: if isAdmin() || (
         signedIn()
@@ -91,9 +111,16 @@ service cloud.firestore {
       );
     }
 
+    // Activity is also the audit log: only admins read it, and no one (not even an admin) can edit
+    // or delete an entry. Borrowers may only log their own actions, of the kinds they can perform.
     match /activity/{id} {
-      allow read, update, delete: if isAdmin();
-      allow create: if isAdmin() || (signedIn() && request.resource.data.actorEmail == myEmail());
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      allow create: if isAdmin() || (
+        signedIn()
+        && request.resource.data.actorEmail == myEmail()
+        && request.resource.data.type in ['loan_requested', 'payment_submitted', 'borrower_registered', 'signed_in', 'profile_updated', 'password_changed']
+      );
     }
   }
 }

@@ -182,7 +182,10 @@ export default function RequestLoanPage() {
                   {copied === "copy" ? "Na-copy!" : "Copy"}
                 </Button>
               </Stack>
-              <Box component="pre" sx={{ m: 0, p: 2, bgcolor: "#f1f5fb", borderRadius: 2, fontFamily: "inherit", fontSize: 14, whiteSpace: "pre-wrap" }}>
+              <Box
+                component="pre"
+                sx={{ m: 0, p: 2, bgcolor: "#f1f5fb", borderRadius: 2, fontFamily: "inherit", fontSize: 14, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+              >
                 {message}
               </Box>
             </Box>

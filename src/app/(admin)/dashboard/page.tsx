@@ -84,10 +84,13 @@ export default function DashboardPage() {
           </Stack>
           <LoansTable loans={booked.slice(0, 6)} compact onView={(l) => router.push(`/loans?id=${l.id}`)} />
         </Paper>
-        <Paper sx={{ p: 2.5 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Recent Activity
-          </Typography>
+        <Paper sx={{ p: 2.5, minWidth: 0 }}>
+          <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6">Recent Activity</Typography>
+            <Button component={Link} href="/audit-logs" endIcon={<ArrowForward />} size="small">
+              View all
+            </Button>
+          </Stack>
           {activity.isPending ? <Loading /> : <ActivityFeed items={activity.data ?? []} />}
         </Paper>
       </Box>

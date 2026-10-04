@@ -5,6 +5,7 @@ import { LenderContactService } from "./LenderContactService";
 import { LoanService } from "./LoanService";
 import { OcrService } from "./OcrService";
 import { PaymentService } from "./PaymentService";
+import { ProfileService } from "./ProfileService";
 import { UploadService } from "./UploadService";
 
 /** Composition root: wires repositories and services once for the client app. */
@@ -13,9 +14,10 @@ const borrowerRepo = new BorrowerRepository(db);
 const paymentRepo = new PaymentRepository(db);
 const activityRepo = new ActivityRepository(db);
 
-export const authService = new AuthService(auth, db);
+export const authService = new AuthService(auth, db, activityRepo);
+export const profileService = new ProfileService(auth, db, borrowerRepo, loanRepo, paymentRepo, activityRepo);
 export const uploadService = new UploadService(authService);
 export const ocrService = new OcrService();
-export const lenderContactService = new LenderContactService(db);
+export const lenderContactService = new LenderContactService(db, activityRepo);
 export const loanService = new LoanService(db, loanRepo, borrowerRepo, activityRepo, uploadService, paymentRepo);
 export const paymentService = new PaymentService(db, paymentRepo, loanRepo, activityRepo, uploadService);

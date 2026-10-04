@@ -146,9 +146,44 @@ describe("self-registered borrower profile", () => {
     await assertFails(setDoc(doc(db, "borrowers/ghost"), profile("ghost@gmail.com")));
   });
 
-  it("borrowers cannot edit profiles (only the admin can)", async () => {
+  it("borrowers can change only their own name; the rest is up to the admin", async () => {
     const db = user(ANNA);
-    await assertFails(updateDoc(doc(db, "borrowers/anna"), { name: "Hacked" }));
+    await assertSucceeds(updateDoc(doc(db, "borrowers/anna"), { name: "Anna Reyes" }));
+    await assertFails(updateDoc(doc(db, "borrowers/anna"), { phone: "0917 000 0000" }));
+    await assertFails(updateDoc(doc(db, "borrowers/anna"), { name: "" }));
+    await assertFails(updateDoc(doc(db, "borrowers/mark"), { name: "Hacked" }));
+  });
+
+  it("a new name is copied onto own loans and payments only, and nothing else changes", async () => {
+    const db = user(ANNA);
+    await assertSucceeds(updateDoc(doc(db, "loans/annaLoan"), { borrowerName: "Anna Reyes" }));
+    await assertSucceeds(updateDoc(doc(db, "payments/annaPay"), { borrowerName: "Anna Reyes" }));
+    await assertFails(updateDoc(doc(db, "loans/annaLoan"), { borrowerName: "Anna Reyes", balance: 0 }));
+    await assertFails(updateDoc(doc(db, "loans/markLoan"), { borrowerName: "Hacked" }));
+  });
+});
+
+describe("audit log (activity)", () => {
+  beforeEach(seed);
+  const entry = (type: string, actorEmail: string) => ({ type, message: "test", actorEmail, loanId: "", borrowerName: "", amount: null, createdAt: 1 });
+
+  it("users log only their own actions, of the kinds they can perform", async () => {
+    const db = user(ANNA);
+    await assertSucceeds(setDoc(doc(db, "activity/a1"), entry("signed_in", ANNA)));
+    await assertSucceeds(setDoc(doc(db, "activity/a2"), entry("payment_submitted", ANNA)));
+    await assertFails(setDoc(doc(db, "activity/a3"), entry("signed_in", MARK)));
+    await assertFails(setDoc(doc(db, "activity/a4"), entry("payment_approved", ANNA)));
+  });
+
+  it("no one can edit or delete an entry, not even an admin", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "activity/old"), entry("payment_approved", ADMIN));
+    });
+    const admin = user(ADMIN);
+    await assertSucceeds(getDoc(doc(admin, "activity/old")));
+    await assertSucceeds(setDoc(doc(admin, "activity/new"), entry("loan_deleted", ADMIN)));
+    await assertFails(updateDoc(doc(admin, "activity/old"), { message: "edited" }));
+    await assertFails(deleteDoc(doc(admin, "activity/old")));
   });
 });
 

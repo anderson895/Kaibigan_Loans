@@ -18,7 +18,7 @@ import { formatDate, today } from "@/domain/dates";
 import type { Loan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
 import type { Payment } from "@/domain/Payment";
-import { BorrowerAvatar, StatusChip, SummaryBox } from "./ui";
+import { BorrowerAvatar, cardsOnPhone, StatusChip, SummaryBox } from "./ui";
 
 export function LoanHeader({ loan, action }: { loan: Loan; action?: ReactNode }) {
   return (
@@ -56,7 +56,7 @@ export function ScheduleTable({ loan, onMarkPaid }: { loan: Loan; onMarkPaid?: (
   const now = today();
   const canMark = !!onMarkPaid && loan.isActive;
   return (
-    <TableContainer>
+    <TableContainer sx={cardsOnPhone}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -70,18 +70,18 @@ export function ScheduleTable({ loan, onMarkPaid }: { loan: Loan; onMarkPaid?: (
         <TableBody>
           {loan.schedule.map((item, index) => (
             <TableRow key={item.dueDate}>
-              <TableCell>{formatDate(item.dueDate)}</TableCell>
-              <TableCell>{formatPeso(item.amountDue)}</TableCell>
-              <TableCell>
+              <TableCell data-label="Due Date">{formatDate(item.dueDate)}</TableCell>
+              <TableCell data-label="Amount Due">{formatPeso(item.amountDue)}</TableCell>
+              <TableCell data-label="Status">
                 {item.status !== "paid" && item.dueDate < now && loan.isActive ? (
                   <StatusChip status="overdue" />
                 ) : (
                   <StatusChip status={item.status} />
                 )}
               </TableCell>
-              <TableCell>{formatDate(item.paidDate)}</TableCell>
+              <TableCell data-label="Paid Date">{formatDate(item.paidDate)}</TableCell>
               {canMark && (
-                <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                <TableCell align="right" data-actions sx={{ whiteSpace: "nowrap" }}>
                   {item.status !== "paid" && (
                     <Button size="small" onClick={() => onMarkPaid?.(loan.remainingFor(index))}>
                       Mark paid{item.status === "partial" ? ` (${formatPeso(loan.remainingFor(index))})` : ""}
@@ -106,7 +106,7 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
     );
   }
   return (
-    <TableContainer>
+    <TableContainer sx={cardsOnPhone}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -125,15 +125,15 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
               onClick={onSelect ? () => onSelect(p) : undefined}
               sx={{ cursor: onSelect ? "pointer" : undefined }}
             >
-              <TableCell>{formatDate(p.paidOn)}</TableCell>
-              <TableCell>
+              <TableCell data-label="Paid On">{formatDate(p.paidOn)}</TableCell>
+              <TableCell data-label="Amount">
                 {formatPeso(p.amount)}
                 <Typography variant="caption" color="text.secondary" component="div">
                   {p.methodLabel}
                 </Typography>
               </TableCell>
-              <TableCell>{p.referenceNo || "-"}</TableCell>
-              <TableCell>
+              <TableCell data-label="Ref No.">{p.referenceNo || "-"}</TableCell>
+              <TableCell data-label="Status">
                 <StatusChip status={p.status} />
                 {p.rejectReason && (
                   <Typography variant="caption" color="error" component="div">
@@ -141,7 +141,7 @@ export function PaymentHistory({ payments, onSelect }: { payments: Payment[]; on
                   </Typography>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell data-label="Receipt">
                 {p.receiptUrl ? (
                   <MuiLink href={p.receiptUrl} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()}>
                     View

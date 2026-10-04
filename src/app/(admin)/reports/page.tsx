@@ -65,7 +65,7 @@ export default function ReportsPage() {
           Per month
         </Typography>
         <TableContainer>
-          <Table size="small">
+          <Table size="small" sx={{ "& th, & td": { px: { xs: 1, sm: 2 } } }}>
             <TableHead>
               <TableRow>
                 <TableCell>Month</TableCell>

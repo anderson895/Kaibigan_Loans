@@ -3,7 +3,7 @@ import { Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRo
 import { formatDate, today } from "@/domain/dates";
 import type { Loan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
-import { EmptyState, NameCell, StatusChip } from "./ui";
+import { cardsOnPhone, EmptyState, NameCell, StatusChip } from "./ui";
 
 interface Props {
   loans: Loan[];
@@ -16,7 +16,7 @@ export function LoansTable({ loans, selectedId, onView, compact }: Props) {
   if (!loans.length) return <EmptyState>No loans found.</EmptyState>;
   const now = today();
   return (
-    <TableContainer>
+    <TableContainer sx={cardsOnPhone}>
       <Table size={compact ? "small" : "medium"}>
         <TableHead>
           <TableRow>
@@ -42,16 +42,18 @@ export function LoansTable({ loans, selectedId, onView, compact }: Props) {
               <TableCell>
                 <NameCell name={loan.borrowerName} />
               </TableCell>
-              <TableCell>{formatPeso(loan.principal)}</TableCell>
-              <TableCell>{formatPeso(loan.interestAmount)}</TableCell>
-              <TableCell>{formatPeso(loan.totalAmount)}</TableCell>
-              <TableCell>{formatPeso(loan.balance)}</TableCell>
-              <TableCell sx={{ whiteSpace: "nowrap" }}>{formatDate(loan.nextDue()?.dueDate ?? loan.dueDate)}</TableCell>
-              <TableCell>
+              <TableCell data-label="Loan Amount">{formatPeso(loan.principal)}</TableCell>
+              <TableCell data-label="Interest">{formatPeso(loan.interestAmount)}</TableCell>
+              <TableCell data-label="Total Amount">{formatPeso(loan.totalAmount)}</TableCell>
+              <TableCell data-label="Balance">{formatPeso(loan.balance)}</TableCell>
+              <TableCell data-label="Due Date" sx={{ whiteSpace: "nowrap" }}>
+                {formatDate(loan.nextDue()?.dueDate ?? loan.dueDate)}
+              </TableCell>
+              <TableCell data-label="Status">
                 <StatusChip status={loan.statusOn(now)} />
               </TableCell>
               {onView && (
-                <TableCell align="right">
+                <TableCell align="right" data-actions>
                   <Button size="small" variant="outlined">
                     View
                   </Button>

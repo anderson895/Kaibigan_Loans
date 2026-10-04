@@ -1,8 +1,10 @@
 "use client";
+import AccountCircleOutlined from "@mui/icons-material/AccountCircleOutlined";
 import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
 import AddCircleOutline from "@mui/icons-material/AddCircleOutlineOutlined";
 import DashboardOutlined from "@mui/icons-material/DashboardOutlined";
 import GroupOutlined from "@mui/icons-material/GroupOutlined";
+import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import Logout from "@mui/icons-material/Logout";
 import MenuIcon from "@mui/icons-material/Menu";
 import NotificationsOutlined from "@mui/icons-material/NotificationsOutlined";
@@ -16,6 +18,7 @@ import {
   Box,
   Divider,
   Drawer,
+  GlobalStyles,
   IconButton,
   List,
   ListItemButton,
@@ -46,6 +49,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/payments", label: "Payments", icon: <PaymentsOutlined /> },
   { href: "/borrowers", label: "Borrowers", icon: <GroupOutlined /> },
   { href: "/reports", label: "Reports", icon: <AssessmentOutlined /> },
+  { href: "/audit-logs", label: "Audit Logs", icon: <HistoryOutlined /> },
 ];
 
 const BORROWER_NAV: NavItem[] = [
@@ -53,20 +57,38 @@ const BORROWER_NAV: NavItem[] = [
   { href: "/request", label: "Request Loan", icon: <AddCircleOutline /> },
 ];
 
-/** Logo + name. `onLight` switches the text colors for light backgrounds (landing page). */
-export function Brand({ onLight = false }: { onLight?: boolean }) {
+const PROFILE_NAV: NavItem = { href: "/profile", label: "My Profile", icon: <AccountCircleOutlined /> };
+const SETTINGS_NAV: NavItem = { href: "/settings", label: "Settings", icon: <SettingsOutlined /> };
+
+/**
+ * Logo + name. `onLight` switches the text colors for light backgrounds (landing page);
+ * `compact` is the small one-line version for the phone top bar.
+ */
+export function Brand({ onLight = false, compact = false }: { onLight?: boolean; compact?: boolean }) {
+  const size = compact ? 32 : 44;
   return (
-    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-      <Avatar variant={onLight ? "rounded" : "circular"} sx={{ bgcolor: "#1d6ef2", width: 44, height: 44, borderRadius: onLight ? 2.5 : "50%" }}>
+    <Stack direction="row" spacing={compact ? 1 : 1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+      <Avatar
+        variant={onLight ? "rounded" : "circular"}
+        sx={{
+          bgcolor: "#1d6ef2",
+          width: size,
+          height: size,
+          borderRadius: onLight ? (compact ? 2 : 2.5) : "50%",
+          "& svg": { fontSize: compact ? 18 : 24 },
+        }}
+      >
         <VolunteerActivismOutlined />
       </Avatar>
-      <Box>
-        <Typography sx={{ fontWeight: 700, color: onLight ? "text.primary" : "#fff", lineHeight: 1.2, fontSize: onLight ? 18 : 16 }}>
+      <Box sx={{ minWidth: 0 }}>
+        <Typography noWrap={compact} sx={{ fontWeight: 700, color: onLight ? "text.primary" : "#fff", lineHeight: 1.2, fontSize: onLight && !compact ? 18 : 16 }}>
           Kaibigan Loans
         </Typography>
-        <Typography variant="caption" sx={{ color: onLight ? "text.secondary" : "#94a3b8" }}>
-          Tulong sa mga Kaibigan
-        </Typography>
+        {!compact && (
+          <Typography variant="caption" sx={{ color: onLight ? "text.secondary" : "#94a3b8" }}>
+            Tulong sa mga Kaibigan
+          </Typography>
+        )}
       </Box>
     </Stack>
   );
@@ -117,7 +139,7 @@ function PendingBell() {
 }
 
 /** Google profile photo with the email initial as fallback (Google blocks photos sent with a referrer). */
-function UserAvatar({ size = 34 }: { size?: number }) {
+export function UserAvatar({ size = 34 }: { size?: number }) {
   const { user } = useAuth();
   return (
     <Avatar
@@ -130,6 +152,10 @@ function UserAvatar({ size = 34 }: { size?: number }) {
   );
 }
 
+/**
+ * App frame: the sidebar, a top bar that never moves, and the page content, which is the only part
+ * that scrolls. The frame is fixed to the screen so phones cannot scroll or bounce the page itself.
+ */
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const router = useRouter();
@@ -152,12 +178,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NavLinks items={items} onNavigate={() => setMobileOpen(false)} />
       <Box sx={{ flexGrow: 1 }} />
       <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mx: 2, mb: 1 }} />
-      {isAdmin && (
-        <NavLinks
-          items={[{ href: "/settings", label: "Settings", icon: <SettingsOutlined /> }]}
-          onNavigate={() => setMobileOpen(false)}
-        />
-      )}
+      <NavLinks items={isAdmin ? [SETTINGS_NAV, PROFILE_NAV] : [PROFILE_NAV]} onNavigate={() => setMobileOpen(false)} />
       <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", px: 2.5, pt: 1.5 }}>
         <UserAvatar size={32} />
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
@@ -183,7 +204,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Box sx={{ position: "fixed", inset: 0, display: "flex", bgcolor: "background.default" }}>
+      {/* Only the content scrolls, so the page itself must not (phones would drag the top bar along). */}
+      <GlobalStyles styles={{ "html, body": { overflow: "hidden", overscrollBehaviorY: "none" } }} />
       <Box component="nav" sx={{ width: { md: SIDEBAR_WIDTH }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
@@ -202,29 +225,56 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Drawer>
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0 }}>
-        <Toolbar sx={{ gap: 1, px: { xs: 2, md: 4 } }}>
-          <IconButton sx={{ display: { md: "none" } }} onClick={() => setMobileOpen(true)} aria-label="Open menu">
-            <MenuIcon />
-          </IconButton>
-          <Box sx={{ flexGrow: 1 }} />
-          {isAdmin && <PendingBell />}
-          <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} aria-label="Account">
-            <UserAvatar />
-          </IconButton>
-          <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
-            <MenuItem disabled>
-              <Typography variant="body2">{user?.email}</Typography>
-            </MenuItem>
-            <MenuItem onClick={logout}>
-              <ListItemIcon>
-                <Logout fontSize="small" />
-              </ListItemIcon>
-              Logout
-            </MenuItem>
-          </Menu>
-        </Toolbar>
-        <Box sx={{ px: { xs: 2, md: 4 }, pb: 5 }}>{children}</Box>
+      <Box sx={{ flexGrow: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+        <Box component="header" sx={{ flexShrink: 0, borderBottom: "1px solid #e5e9f2" }}>
+          <Toolbar sx={{ gap: 1, px: { xs: 1, md: 4 } }}>
+            <IconButton sx={{ display: { md: "none" } }} onClick={() => setMobileOpen(true)} aria-label="Open menu">
+              <MenuIcon />
+            </IconButton>
+            <Box component={Link} href={items[0].href} sx={{ display: { xs: "flex", md: "none" }, minWidth: 0, textDecoration: "none" }}>
+              <Brand onLight compact />
+            </Box>
+            <Box sx={{ flexGrow: 1 }} />
+            {isAdmin && <PendingBell />}
+            <IconButton onClick={(e) => setMenuAnchor(e.currentTarget)} aria-label="Account">
+              <UserAvatar />
+            </IconButton>
+            <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+              <MenuItem disabled>
+                <Typography variant="body2">{user?.email}</Typography>
+              </MenuItem>
+              <MenuItem component={Link} href={PROFILE_NAV.href} onClick={() => setMenuAnchor(null)}>
+                <ListItemIcon>
+                  <AccountCircleOutlined fontSize="small" />
+                </ListItemIcon>
+                My Profile
+              </MenuItem>
+              <MenuItem onClick={logout}>
+                <ListItemIcon>
+                  <Logout fontSize="small" />
+                </ListItemIcon>
+                Logout
+              </MenuItem>
+            </Menu>
+          </Toolbar>
+        </Box>
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            overscrollBehaviorY: "contain",
+            px: { xs: 2, md: 4 },
+            pt: { xs: 2, md: 3 },
+            pb: 5,
+            // Next.js scrolls a new page into view; keep the top padding when it does.
+            scrollPaddingTop: { xs: 16, md: 24 },
+          }}
+        >
+          {children}
+        </Box>
       </Box>
     </Box>
   );

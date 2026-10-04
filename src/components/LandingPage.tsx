@@ -134,7 +134,7 @@ function Header() {
           href={signedIn ? homeFor(role) : "/login"}
           variant="contained"
           startIcon={<PersonOutlined />}
-          sx={{ ml: { xs: "auto", md: 0 }, px: 3, py: 1.1, borderRadius: 2.5 }}
+          sx={{ ml: { xs: "auto", md: 0 }, px: { xs: 2, sm: 3 }, py: 1.1, borderRadius: 2.5, flexShrink: 0 }}
         >
           {signedIn ? "Dashboard" : "Login"}
         </Button>

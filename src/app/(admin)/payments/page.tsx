@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { RecordPaymentDialog, ReviewPaymentDialog } from "@/components/PaymentDialogs";
-import { EmptyState, ErrorAlert, Loading, NameCell, PageHeader, StatusChip } from "@/components/ui";
+import { cardsOnPhone, EmptyState, ErrorAlert, Loading, NameCell, PageHeader, StatusChip } from "@/components/ui";
 import { formatDate } from "@/domain/dates";
 import { formatPeso } from "@/domain/money";
 import type { Payment, PaymentStatus } from "@/domain/Payment";
@@ -44,7 +44,7 @@ export default function PaymentsPage() {
         }
       />
       <Paper sx={{ p: 2.5 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 2 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ mb: 2 }}>
           <Tab value="pending" label={`Pending (${count("pending")})`} />
           <Tab value="approved" label={`Approved (${count("approved")})`} />
           <Tab value="rejected" label={`Rejected (${count("rejected")})`} />
@@ -55,7 +55,7 @@ export default function PaymentsPage() {
         ) : rows.length === 0 ? (
           <EmptyState>No {tab} payments.</EmptyState>
         ) : (
-          <TableContainer>
+          <TableContainer sx={cardsOnPhone}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -72,7 +72,7 @@ export default function PaymentsPage() {
               <TableBody>
                 {rows.map((p) => (
                   <TableRow key={p.id} hover onClick={() => setReviewing(p)} sx={{ cursor: "pointer" }}>
-                    <TableCell>
+                    <TableCell data-phone="hide">
                       {p.receiptUrl ? (
                         <Avatar variant="rounded" src={p.receiptUrl} sx={{ width: 44, height: 44 }} />
                       ) : (
@@ -84,13 +84,13 @@ export default function PaymentsPage() {
                     <TableCell>
                       <NameCell name={p.borrowerName} sub={p.borrowerEmail} />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Amount">
                       {formatPeso(p.amount)}
                       <Typography variant="caption" color="text.secondary" component="div">
                         {p.methodLabel}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="OCR Amount">
                       {p.ocr?.amount != null ? formatPeso(p.ocr.amount) : "-"}
                       {p.hasOcrMismatch && (
                         <Tooltip title="Does not match the declared amount">
@@ -98,12 +98,14 @@ export default function PaymentsPage() {
                         </Tooltip>
                       )}
                     </TableCell>
-                    <TableCell>{p.referenceNo || "-"}</TableCell>
-                    <TableCell sx={{ whiteSpace: "nowrap" }}>{formatDate(p.paidOn)}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Ref No.">{p.referenceNo || "-"}</TableCell>
+                    <TableCell data-label="Paid On" sx={{ whiteSpace: "nowrap" }}>
+                      {formatDate(p.paidOn)}
+                    </TableCell>
+                    <TableCell data-label="Status">
                       <StatusChip status={p.status} />
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" data-actions>
                       <Button size="small" variant={p.isPending ? "contained" : "outlined"}>
                         {p.isPending ? "Review" : "View"}
                       </Button>

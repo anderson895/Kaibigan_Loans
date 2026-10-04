@@ -49,39 +49,45 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const [recording, setRecording] = useState<{ amount?: number } | null>(null);
 
   const remove = () => {
-    if (confirm(`Delete ${loan.borrowerName}'s loan? Its payments and activity will also be deleted. This cannot be undone.`)) {
-      deleteLoan.mutate(loan.id, { onSuccess: onClose });
+    if (confirm(`Delete ${loan.borrowerName}'s loan? Its payments will also be deleted. This cannot be undone.`)) {
+      deleteLoan.mutate(loan, { onSuccess: onClose });
     }
   };
 
   return (
-    <Paper sx={{ p: 2.5 }}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 2 }}>
+    <Paper sx={{ p: 2.5, minWidth: 0 }}>
+      <Stack direction="row" useFlexGap sx={{ alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
         <IconButton size="small" onClick={onClose} aria-label="Close details">
           <ArrowBack />
         </IconButton>
         <Typography variant="h6" sx={{ flexGrow: 1 }}>
           Loan Details
         </Typography>
-        {loan.isRequest && (
-          <Button variant="contained" size="small" onClick={() => setReviewRequest(true)}>
-            Review Request
-          </Button>
-        )}
-        {loan.isActive && (
-          <Tooltip title={loan.canEditTerms ? "Edit loan" : "Can't edit after a payment was approved"}>
-            <span>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<EditOutlined />}
-                disabled={!loan.canEditTerms}
-                onClick={() => setEditing(true)}
-              >
-                Edit
+        {(loan.isRequest || loan.isActive) && (
+          // Phones: the buttons get their own full-width line under the title.
+          <Box sx={{ order: { xs: 1, sm: 0 }, width: { xs: "100%", sm: "auto" }, display: "flex" }}>
+            {loan.isRequest && (
+              <Button variant="contained" size="small" onClick={() => setReviewRequest(true)} sx={{ flexGrow: 1, minHeight: { xs: 40, sm: 0 } }}>
+                Review Request
               </Button>
-            </span>
-          </Tooltip>
+            )}
+            {loan.isActive && (
+              <Tooltip title={loan.canEditTerms ? "Edit loan" : "Can't edit after a payment was approved"}>
+                <Box component="span" sx={{ flexGrow: 1, display: "flex" }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<EditOutlined />}
+                    disabled={!loan.canEditTerms}
+                    onClick={() => setEditing(true)}
+                    sx={{ flexGrow: 1, minHeight: { xs: 40, sm: 0 } }}
+                  >
+                    Edit
+                  </Button>
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
         )}
         <IconButton size="small" color="error" onClick={remove} aria-label="Delete loan">
           <DeleteOutline />

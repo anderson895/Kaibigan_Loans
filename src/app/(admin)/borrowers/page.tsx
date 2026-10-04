@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { BorrowerDialog } from "@/components/BorrowerDialog";
 import { NewLoanDialog } from "@/components/LoanDialogs";
-import { EmptyState, ErrorAlert, Loading, NameCell, PageHeader } from "@/components/ui";
+import { cardsOnPhone, EmptyState, ErrorAlert, Loading, NameCell, PageHeader } from "@/components/ui";
 import type { Borrower } from "@/domain/Borrower";
 import { formatPeso } from "@/domain/money";
 import { useBorrowers, useLoans } from "@/hooks/queries";
@@ -77,7 +77,7 @@ export default function BorrowersPage() {
               : "No matches."}
           </EmptyState>
         ) : (
-          <TableContainer>
+          <TableContainer sx={cardsOnPhone}>
             <Table>
               <TableHead>
                 <TableRow>
@@ -98,14 +98,16 @@ export default function BorrowersPage() {
                       <TableCell>
                         <NameCell name={b.name} sub={b.hasEmail ? b.email : "No website account"} />
                       </TableCell>
-                      <TableCell>{b.phone || "-"}</TableCell>
-                      <TableCell sx={{ maxWidth: 240 }}>{b.payoutDetails || "-"}</TableCell>
-                      <TableCell sx={{ whiteSpace: "nowrap" }}>
+                      <TableCell data-label="Phone">{b.phone || "-"}</TableCell>
+                      <TableCell data-label="Send money to" sx={{ maxWidth: 240 }}>
+                        {b.payoutDetails || "-"}
+                      </TableCell>
+                      <TableCell data-label="Joined" sx={{ whiteSpace: "nowrap" }}>
                         {new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" })}
                       </TableCell>
-                      <TableCell>{stats.active}</TableCell>
-                      <TableCell>{formatPeso(stats.outstanding)}</TableCell>
-                      <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                      <TableCell data-label="Active Loans">{stats.active}</TableCell>
+                      <TableCell data-label="Outstanding">{formatPeso(stats.outstanding)}</TableCell>
+                      <TableCell align="right" data-actions sx={{ whiteSpace: "nowrap" }}>
                         <Tooltip title="Edit phone / payout details">
                           <IconButton size="small" onClick={() => setEditing({ borrower: b, key: Date.now() })} aria-label={`Edit ${b.name}`}>
                             <EditOutlined />
@@ -115,7 +117,7 @@ export default function BorrowersPage() {
                           size="small"
                           variant="contained"
                           startIcon={<Add />}
-                          sx={{ ml: 1 }}
+                          sx={{ ml: { xs: 0, sm: 1 } }}
                           onClick={() => setLendTo({ borrower: b, key: Date.now() })}
                         >
                           New Loan

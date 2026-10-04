@@ -30,6 +30,33 @@ export const theme = createTheme({
     },
     MuiAppBar: { styleOverrides: { root: { border: "none" } } },
     MuiDrawer: { styleOverrides: { paper: { border: "none" } } },
+    // Phones: dialogs use more of the narrow screen.
+    MuiDialog: {
+      styleOverrides: {
+        paper: ({ theme }) => ({ [theme.breakpoints.down("sm")]: { margin: 16, maxHeight: "calc(100% - 32px)" } }),
+        paperFullWidth: ({ theme }) => ({ [theme.breakpoints.down("sm")]: { width: "calc(100% - 32px)" } }),
+      },
+    },
+    MuiDialogTitle: {
+      styleOverrides: { root: ({ theme }) => ({ [theme.breakpoints.down("sm")]: { paddingLeft: 20, paddingRight: 20 } }) },
+    },
+    MuiDialogContent: {
+      styleOverrides: { root: ({ theme }) => ({ [theme.breakpoints.down("sm")]: { paddingLeft: 20, paddingRight: 20 } }) },
+    },
+    // Phones: full-width buttons stacked, the main action on top (it is last in the markup).
+    MuiDialogActions: {
+      styleOverrides: {
+        root: ({ theme }) => ({
+          [theme.breakpoints.down("sm")]: {
+            flexDirection: "column-reverse",
+            alignItems: "stretch",
+            gap: 8,
+            padding: "8px 20px 20px",
+            "& > :not(style) ~ :not(style)": { marginLeft: 0 },
+          },
+        }),
+      },
+    },
     MuiTableCell: {
       styleOverrides: {
         head: { fontWeight: 600, color: "#475569", backgroundColor: "#f8fafc", fontSize: 13 },

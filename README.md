@@ -39,7 +39,9 @@ Kapalit ito ng mano-manong paglilista sa Word (Name, Credit, Interest, Balance, 
 | **Payments** | Pending, Approved at Rejected tabs, resibo, OCR amount, mismatch warning, **Approve & deduct** o **Reject** (may dahilan) |
 | **Borrowers** | Lahat ng nag-register (kusang nadadagdag pagka-verify ng email), phone, saan ipapadala ang pera, active loans, outstanding, at **New Loan** button |
 | **Reports** | Total lent, interest, collected, outstanding, per-month na buod, **Export CSV** |
+| **Audit Logs** | Lahat ng ginawa ng mga admin at borrower: sino, anong action, kailan at detalye. May search at filter. Hindi ito mabubura o mababago ninuman |
 | **Settings** | Magdagdag o magtanggal ng ibang admin |
+| **My Profile** | Palitan ang sariling pangalan at password (para rin sa borrower) |
 
 ### Borrower (mobile-friendly)
 | Page | Ano ang laman |
@@ -47,6 +49,9 @@ Kapalit ito ng mano-manong paglilista sa Word (Name, Credit, Interest, Balance, 
 | **My Loans** | Current balance, next due, status, schedule, payment history (kasama ang dahilan kapag na-reject) |
 | **Upload Payment** | Screenshot, auto-fill ng amount at ref no. gamit ang OCR, at petsa ng bayad |
 | **Request Loan** | Amount, hulugan o isang bagsak, ilang buwan, at saan ipapadala ang pera |
+| **My Profile** | Palitan ang pangalan (makikita ito ng nagpapautang sa mga loan) at password. Ang naka-Google ay sa Google account nagpapalit ng password |
+
+Sa phone, hindi gumagalaw ang top bar: ang content lang ang nag-i-scroll. Ang mga table ay nagiging card, at full-width ang mga button.
 
 ### Status ng Loan
 | Status | Kahulugan |
@@ -279,7 +284,7 @@ tests/firestore.rules.test.ts
 | `borrowers/{id}` | `name, email, phone, payoutDetails, createdAt` |
 | `loans/{id}` | `borrowerId, borrowerName, borrowerEmail, principal, interestType, interestValue, term, termUnit (`months`\|`weeks`), paymentPlan, interestAmount, totalAmount, amountPaid, balance, startDate, dueDate, status, schedule[], notes, payoutDetails, createdAt` |
 | `payments/{id}` | `loanId, borrowerId, borrowerName, borrowerEmail, amount, referenceNo, paidOn, receiptUrl, receiptPublicId, ocr{amount, referenceNo, text}, status, rejectReason, submittedAt, reviewedAt` |
-| `activity/{id}` | `type, message, loanId, borrowerName, amount, actorEmail, createdAt` |
+| `activity/{id}` | `type, message, loanId, borrowerName, amount, actorEmail, createdAt` (ito rin ang **audit log**: sign-in, loans, payments, borrowers, profile, admins at settings) |
 
 Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shift.
 
@@ -324,6 +329,8 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
   - Nababasa lang ng borrower ang `loans`, `payments` at `borrowers` na tugma sa **sariling email** niya.
   - Ang kaya lang gawin ng borrower: gumawa ng `pending` na payment para sa *sarili niyang aktibong* loan, at `pending` na loan request (walang tubo, max ₱100,000).
   - **Hindi** kayang baguhin ng borrower ang balance o mag-approve ng payment.
+  - Sa My Profile, ang tanging kayang baguhin ng borrower ay ang **sariling pangalan** (sa borrower profile niya at sa kopya nito sa sarili niyang loans at payments).
+  - **Audit log** (`activity`): admin lang ang nakakabasa, at walang makapag-edit o makapagbura ng entry, kahit admin. Ang borrower ay sariling action lang ang kayang i-log.
   - Ang unang admin ay isang beses lang ma-claim (`meta/setup`).
 - **Cloudinary secret** ay nasa server lang (`/api/upload-signature`). Nagbibigay lang ito ng signature sa mga naka-login na user na verified ang email.
 - Ang `.env*` at `api_credentials.txt` ay nasa `.gitignore`.
@@ -335,8 +342,8 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
 ## Testing
 
 ```bash
-npm test             # 20 unit tests: interest, schedule, payments, status, OCR parser
-npm run test:rules   # 8 security rules tests gamit ang Firestore emulator (kailangan ng Java)
+npm test             # 55 unit tests: interest, schedule, payments, status, OCR parser, contact links, Turnstile
+npm run test:rules   # 18 security rules tests gamit ang Firestore emulator (kailangan ng Java)
 ```
 
 **Manual E2E checklist:**

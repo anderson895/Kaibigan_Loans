@@ -33,16 +33,25 @@ export class LoanService {
    */
   async ensureBorrowerFor(user: { uid: string; email: string; displayName: string | null }): Promise<void> {
     if (await this.borrowers.findByEmail(user.email)) return;
-    await this.borrowers.save(user.uid, Borrower.forRegisteredUser(user.uid, user.displayName ?? "", user.email));
+    const borrower = Borrower.forRegisteredUser(user.uid, user.displayName ?? "", user.email);
+    const batch = writeBatch(this.db);
+    batch.set(this.borrowers.docRef(user.uid), this.borrowers.toData(borrower));
+    this.logActivity(batch, "borrower_registered", `${borrower.name} registered`, "", borrower.name, null, user.email);
+    await batch.commit();
   }
 
-  async createBorrower(input: BorrowerInput): Promise<string> {
+  async createBorrower(input: BorrowerInput, actorEmail: string): Promise<string> {
     const borrower = Borrower.create(input);
     // Only check duplicates by email when there is one (borrowers can be added by name only).
     if (borrower.hasEmail && (await this.borrowers.findByEmail(borrower.email))) {
       throw new Error("A borrower with this email already exists.");
     }
-    return this.borrowers.create(borrower);
+    const ref = this.borrowers.newDocRef();
+    const batch = writeBatch(this.db);
+    batch.set(ref, this.borrowers.toData(borrower));
+    this.logActivity(batch, "borrower_created", `Borrower ${borrower.name} added`, "", borrower.name, null, actorEmail);
+    await batch.commit();
+    return ref.id;
   }
 
   /**
@@ -50,7 +59,7 @@ export class LoanService {
    * Those copies decide who can see a loan, so adding an email to a borrower who was added by name
    * lets them see their existing loans once they register with that email.
    */
-  async updateBorrower(borrower: Borrower, changes: Partial<BorrowerInput>): Promise<void> {
+  async updateBorrower(borrower: Borrower, changes: Partial<BorrowerInput>, actorEmail: string): Promise<void> {
     const updated = borrower.update(changes);
     if (updated.hasEmail && updated.email !== borrower.email) {
       const existing = await this.borrowers.findByEmail(updated.email);
@@ -64,18 +73,31 @@ export class LoanService {
       ? (await Promise.all([this.loans.refsWhere("borrowerId", borrower.id), this.payments.refsWhere("borrowerId", borrower.id)])).flat()
       : [];
 
+    const changed = [
+      updated.name !== borrower.name && `name (was ${borrower.name})`,
+      updated.email !== borrower.email && "email",
+      updated.phone !== borrower.phone && "phone",
+      updated.payoutDetails !== borrower.payoutDetails && "payout details",
+    ].filter(Boolean);
+
     const batch = writeBatch(this.db);
     batch.set(this.borrowers.docRef(borrower.id), this.borrowers.toData(updated));
     linked.forEach((ref) => batch.update(ref, { borrowerEmail: updated.email, borrowerName: updated.name }));
+    if (changed.length) {
+      this.logActivity(batch, "borrower_updated", `Details of ${updated.name} updated: ${changed.join(", ")}`, "", updated.name, null, actorEmail);
+    }
     await batch.commit();
   }
 
-  async deleteBorrower(id: string): Promise<void> {
+  async deleteBorrower(id: string, actorEmail: string): Promise<void> {
     const borrower = await this.borrowers.get(id);
     if (!borrower) return;
     const loans = await this.loans.listByBorrower(borrower.id);
     if (loans.some((l) => l.isActive || l.isRequest)) throw new Error("This borrower still has an active loan.");
-    await this.borrowers.delete(id);
+    const batch = writeBatch(this.db);
+    batch.delete(this.borrowers.docRef(id));
+    this.logActivity(batch, "borrower_deleted", `Borrower ${borrower.name} deleted`, "", borrower.name, null, actorEmail);
+    await batch.commit();
   }
 
   // ---- Loans ----
@@ -180,23 +202,32 @@ export class LoanService {
     await batch.commit();
   }
 
-  /** Deletes a loan together with its payments and activity entries, so nothing is left orphaned. */
-  async deleteLoan(id: string): Promise<void> {
-    const [paymentRefs, activityRefs] = await Promise.all([
-      this.payments.refsWhere("loanId", id),
-      this.activity.refsWhere("loanId", id),
-    ]);
-    const refs = [...paymentRefs, ...activityRefs, this.loans.docRef(id)];
-    // Firestore batches hold up to 500 writes; the loan itself goes in the last batch.
+  /**
+   * Deletes a loan together with its payments. Its activity stays in the audit log (entries are never
+   * deleted), plus an entry saying who deleted the loan.
+   */
+  async deleteLoan(loan: Loan, actorEmail: string): Promise<void> {
+    const refs = [...(await this.payments.refsWhere("loanId", loan.id)), this.loans.docRef(loan.id)];
+    // Firestore batches hold up to 500 writes; the loan itself and the log entry go in the last batch.
     for (let i = 0; i < refs.length; i += 450) {
       const batch = writeBatch(this.db);
       refs.slice(i, i + 450).forEach((ref) => batch.delete(ref));
+      if (i + 450 >= refs.length) {
+        this.logActivity(batch, "loan_deleted", `Loan of ${loan.borrowerName} deleted`, loan.id, loan.borrowerName, loan.principal, actorEmail);
+      }
       await batch.commit();
     }
   }
 
-  recentActivity(count?: number) {
-    return this.activity.recent(count);
+  /** Latest activity for the dashboard. Sign-ins are left out; they are in the audit log. */
+  async recentActivity(count = 8) {
+    const recent = await this.activity.recent(count * 4);
+    return recent.filter((a) => a.type !== "signed_in").slice(0, count);
+  }
+
+  /** The full audit log, newest first, one page at a time. */
+  activityLog(count: number, afterId?: string) {
+    return this.activity.page(count, afterId);
   }
 
   private borrowerFields(borrower: Borrower) {
@@ -212,6 +243,6 @@ export class LoanService {
     amount: number | null,
     actorEmail: string,
   ) {
-    batch.set(this.activity.newDocRef(), { type, message, loanId, borrowerName, amount, actorEmail, createdAt: Date.now() });
+    batch.set(this.activity.newDocRef(), this.activity.entry({ type, message, loanId, borrowerName, amount, actorEmail }));
   }
 }

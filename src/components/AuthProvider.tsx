@@ -14,6 +14,8 @@ interface AuthState {
   refreshRole: () => Promise<void>;
   /** Re-checks verification after the user clicks the email link. Returns true when verified. */
   reloadUser: () => Promise<boolean>;
+  /** Re-renders with the current profile after it changed (Firebase updates the user object in place). */
+  refreshUser: () => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -23,6 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
   const [verified, setVerified] = useState(false);
+  const [, setProfileVersion] = useState(0);
 
   const resolve = async (next: User | null) => {
     setUser(next);
@@ -60,8 +63,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshUser = useCallback(() => setProfileVersion((v) => v + 1), []);
+
   return (
-    <AuthContext.Provider value={{ user, email: user?.email?.toLowerCase() ?? "", role, loading, verified, refreshRole, reloadUser }}>
+    <AuthContext.Provider value={{ user, email: user?.email?.toLowerCase() ?? "", role, loading, verified, refreshRole, reloadUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

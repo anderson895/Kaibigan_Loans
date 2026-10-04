@@ -48,7 +48,7 @@ function ContactSettings() {
         />
         <TextField size="small" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         <TextField size="small" label="Contact number" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { xs: "stretch", sm: "center" } }}>
           <Button variant="contained" disabled={save.isPending} onClick={() => save.mutate({ messenger, email, phone })}>
             Save
           </Button>

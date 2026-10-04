@@ -16,7 +16,8 @@ import {
   type User,
 } from "firebase/auth";
 import { FirebaseError } from "firebase/app";
-import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, writeBatch, type Firestore } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, writeBatch, type Firestore } from "firebase/firestore";
+import type { ActivityRepository } from "@/data/repositories";
 
 export type Role = "admin" | "borrower";
 
@@ -34,6 +35,7 @@ const AUTH_ERRORS: Record<string, string> = {
   "auth/unauthorized-domain": "This domain is not authorized in Firebase yet.",
   "auth/invalid-action-code": "This link is invalid or was already used. Request a new one.",
   "auth/expired-action-code": "This link has expired. Request a new one.",
+  "auth/requires-recent-login": "For your security, log out and log in again, then try again.",
 };
 
 /** Turns Firebase auth errors into friendly Taglish messages. */
@@ -65,6 +67,7 @@ export class AuthService {
   constructor(
     private readonly auth: Auth,
     private readonly db: Firestore,
+    private readonly activity: ActivityRepository,
   ) {}
 
   onChange(callback: (user: User | null) => void) {
@@ -75,6 +78,7 @@ export class AuthService {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
     const { user } = await signInWithPopup(this.auth, provider);
+    this.logSignIn(user, "Google");
     return user;
   }
 
@@ -82,7 +86,20 @@ export class AuthService {
   async signInWithEmail(email: string, password: string, remember: boolean): Promise<User> {
     await setPersistence(this.auth, remember ? browserLocalPersistence : browserSessionPersistence);
     const { user } = await signInWithEmailAndPassword(this.auth, email.trim(), password);
+    this.logSignIn(user, "email");
     return user;
+  }
+
+  /**
+   * Audit log entry for a sign-in from the login page (restored sessions are not logged). Unverified
+   * accounts cannot write yet, and a failed entry must never block the sign-in.
+   */
+  private logSignIn(user: User, method: string): void {
+    if (!user.emailVerified || !user.email) return;
+    const email = user.email.toLowerCase();
+    this.activity
+      .log({ type: "signed_in", message: `${user.displayName || email} signed in with ${method}`, actorEmail: email })
+      .catch(() => undefined);
   }
 
   /** Creates an email/password account and sends a verification link (required before data access). */
@@ -163,6 +180,10 @@ export class AuthService {
     batch.set(doc(this.db, "admins", email), { email, addedAt: Date.now() });
     batch.set(doc(this.db, "meta", "setup"), { owner: email, at: Date.now() });
     await batch.commit();
+    // A separate write: inside the batch above, the rules would not see them as admin yet.
+    await this.activity
+      .log({ type: "admin_claimed", message: `${user.displayName || email} became the first admin`, actorEmail: email })
+      .catch(() => undefined);
   }
 
   async listAdmins(): Promise<string[]> {
@@ -173,11 +194,21 @@ export class AuthService {
   async addAdmin(email: string): Promise<void> {
     const normalized = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) throw new Error("Invalid email");
-    await setDoc(doc(this.db, "admins", normalized), { email: normalized, addedAt: Date.now() });
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, "admins", normalized), { email: normalized, addedAt: Date.now() });
+    batch.set(this.activity.newDocRef(), this.activity.entry({ type: "admin_added", message: `Admin access given to ${normalized}`, actorEmail: this.myEmail() }));
+    await batch.commit();
   }
 
   async removeAdmin(email: string): Promise<void> {
-    if (email === this.auth.currentUser?.email?.toLowerCase()) throw new Error("You cannot remove yourself");
-    await deleteDoc(doc(this.db, "admins", email));
+    if (email === this.myEmail()) throw new Error("You cannot remove yourself");
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "admins", email));
+    batch.set(this.activity.newDocRef(), this.activity.entry({ type: "admin_removed", message: `Admin access removed from ${email}`, actorEmail: this.myEmail() }));
+    await batch.commit();
+  }
+
+  private myEmail(): string {
+    return this.auth.currentUser?.email?.toLowerCase() ?? "";
   }
 }

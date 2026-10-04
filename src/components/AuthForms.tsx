@@ -86,7 +86,7 @@ function Heading({ title, subtitle }: { title: string; subtitle: string }) {
  * Outlined input with a leading icon and a floating label. MUI keeps the label floated whenever there is
  * a start icon, so we float it ourselves: while focused, when it has a value, or when the browser autofills it.
  */
-function Field({ label, icon, ...props }: { label: string; icon: ReactNode } & React.ComponentProps<typeof TextField>) {
+export function Field({ label, icon, ...props }: { label: string; icon: ReactNode } & React.ComponentProps<typeof TextField>) {
   const [focused, setFocused] = useState(false);
   const [autofilled, setAutofilled] = useState(false);
   const floated = focused || autofilled || String(props.value ?? "") !== "";

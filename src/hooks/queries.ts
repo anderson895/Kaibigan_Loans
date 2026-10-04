@@ -1,11 +1,11 @@
 "use client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Borrower, BorrowerInput } from "@/domain/Borrower";
 import type { Loan } from "@/domain/Loan";
 import { useAuth } from "@/components/AuthProvider";
 import type { LoanTermsInput } from "@/services/LoanService";
 import type { RecordPaymentInput, SubmitPaymentInput } from "@/services/PaymentService";
-import { authService, lenderContactService, loanService, paymentService } from "@/services/container";
+import { authService, lenderContactService, loanService, paymentService, profileService } from "@/services/container";
 
 export const keys = {
   loans: ["loans"] as const,
@@ -16,9 +16,13 @@ export const keys = {
   payments: ["payments"] as const,
   loanPayments: (loanId: string) => ["payments", "loan", loanId] as const,
   activity: ["activity"] as const,
+  // Under "activity", so everything that refreshes the dashboard feed refreshes the audit log too.
+  auditLog: ["activity", "log"] as const,
   admins: ["admins"] as const,
   lenderContact: ["lenderContact"] as const,
 };
+
+const AUDIT_LOG_PAGE = 50;
 
 // ---- Queries ----
 
@@ -53,14 +57,24 @@ export function useLoanPayments(loanId: string | null, asBorrower = false) {
 
 export const useActivity = () => useQuery({ queryKey: keys.activity, queryFn: () => loanService.recentActivity(8) });
 
+/** Admin: every logged action, newest first; `fetchNextPage` loads older entries. */
+export const useAuditLog = () =>
+  useInfiniteQuery({
+    queryKey: keys.auditLog,
+    queryFn: ({ pageParam }) => loanService.activityLog(AUDIT_LOG_PAGE, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length === AUDIT_LOG_PAGE ? last[last.length - 1].id : undefined),
+  });
+
 export const useLenderContact = () =>
   useQuery({ queryKey: keys.lenderContact, queryFn: () => lenderContactService.get() });
 
 export function useSaveLenderContact() {
+  const { email } = useAuth();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (input: { messenger: string; email: string; phone: string }) => lenderContactService.save(input),
-    onSuccess: () => invalidate(keys.lenderContact),
+    mutationFn: (input: { messenger: string; email: string; phone: string }) => lenderContactService.save(input, email),
+    onSuccess: () => invalidate(keys.lenderContact, keys.activity),
   });
 }
 
@@ -75,26 +89,55 @@ function useInvalidate() {
 }
 
 export function useCreateBorrower() {
+  const { email } = useAuth();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (input: BorrowerInput) => loanService.createBorrower(input),
-    onSuccess: () => invalidate(keys.borrowers),
+    mutationFn: (input: BorrowerInput) => loanService.createBorrower(input, email),
+    onSuccess: () => invalidate(keys.borrowers, keys.activity),
   });
 }
 
 export function useUpdateBorrower() {
+  const { email } = useAuth();
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ borrower, changes }: { borrower: Borrower; changes: Partial<BorrowerInput> }) =>
-      loanService.updateBorrower(borrower, changes),
+      loanService.updateBorrower(borrower, changes, email),
     // Name/email are copied onto their loans and payments, so refresh those too.
-    onSuccess: () => invalidate(keys.borrowers, keys.loans, keys.payments),
+    onSuccess: () => invalidate(keys.borrowers, keys.loans, keys.payments, keys.activity),
   });
 }
 
 export function useDeleteBorrower() {
+  const { email } = useAuth();
   const invalidate = useInvalidate();
-  return useMutation({ mutationFn: (id: string) => loanService.deleteBorrower(id), onSuccess: () => invalidate(keys.borrowers) });
+  return useMutation({
+    mutationFn: (id: string) => loanService.deleteBorrower(id, email),
+    onSuccess: () => invalidate(keys.borrowers, keys.activity),
+  });
+}
+
+// ---- My Profile ----
+
+/** Renames the signed-in user (account, borrower profile and the name on their loans). */
+export function useUpdateName() {
+  const { refreshUser } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: (name: string) => profileService.updateName(name),
+    onSuccess: () => {
+      refreshUser();
+      return invalidate(keys.borrowers, keys.loans, keys.payments, keys.activity);
+    },
+  });
+}
+
+export function useChangePassword() {
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ current, next }: { current: string; next: string }) => profileService.changePassword(current, next),
+    onSuccess: () => invalidate(keys.activity),
+  });
 }
 
 interface ProofOfSend {
@@ -164,9 +207,10 @@ export function useUpdateLoanTerms() {
 }
 
 export function useDeleteLoan() {
+  const { email } = useAuth();
   const invalidate = useInvalidate();
   return useMutation({
-    mutationFn: (id: string) => loanService.deleteLoan(id),
+    mutationFn: (loan: Loan) => loanService.deleteLoan(loan, email),
     onSuccess: () => invalidate(keys.loans, keys.payments, keys.activity),
   });
 }
@@ -213,7 +257,7 @@ export function useReviewPayment() {
 
 export function useAdminMutations() {
   const invalidate = useInvalidate();
-  const add = useMutation({ mutationFn: (email: string) => authService.addAdmin(email), onSuccess: () => invalidate(keys.admins) });
-  const remove = useMutation({ mutationFn: (email: string) => authService.removeAdmin(email), onSuccess: () => invalidate(keys.admins) });
+  const add = useMutation({ mutationFn: (email: string) => authService.addAdmin(email), onSuccess: () => invalidate(keys.admins, keys.activity) });
+  const remove = useMutation({ mutationFn: (email: string) => authService.removeAdmin(email), onSuccess: () => invalidate(keys.admins, keys.activity) });
   return { add, remove };
 }

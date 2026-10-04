@@ -165,7 +165,7 @@ export function ReviewPaymentDialog({ payment, onClose }: { payment: Payment | n
               rel="noopener"
               sx={{ flex: 1, display: "block", bgcolor: "#f8fafc", borderRadius: 2, textAlign: "center" }}
             >
-              <Box component="img" src={payment.receiptUrl} alt="Receipt" sx={{ maxWidth: "100%", maxHeight: 460, objectFit: "contain" }} />
+              <Box component="img" src={payment.receiptUrl} alt="Receipt" sx={{ maxWidth: "100%", maxHeight: { xs: 300, md: 460 }, objectFit: "contain" }} />
             </Box>
           ) : (
             <Stack
@@ -194,21 +194,17 @@ export function ReviewPaymentDialog({ payment, onClose }: { payment: Payment | n
             )}
             {!payment.isManual &&
               (ocrAmount != null ? (
-                <Alert
-                  severity={payment.hasOcrMismatch ? "warning" : "success"}
-                  icon={<AutoAwesome />}
-                  action={
-                    payment.hasOcrMismatch &&
-                    payment.isPending && (
-                      <Button size="small" onClick={() => setAmount(String(ocrAmount))}>
-                        Use {formatPeso(ocrAmount)}
-                      </Button>
-                    )
-                  }
-                >
+                <Alert severity={payment.hasOcrMismatch ? "warning" : "success"} icon={<AutoAwesome />}>
                   OCR: {formatPeso(ocrAmount)}
                   {payment.ocr?.referenceNo ? ` · Ref ${payment.ocr.referenceNo}` : ""}
                   {payment.hasOcrMismatch ? " — does not match the declared amount" : " — matches"}
+                  {payment.hasOcrMismatch && payment.isPending && (
+                    <Box sx={{ mt: 0.5 }}>
+                      <Button size="small" color="inherit" variant="outlined" onClick={() => setAmount(String(ocrAmount))}>
+                        Use {formatPeso(ocrAmount)}
+                      </Button>
+                    </Box>
+                  )}
                 </Alert>
               ) : (
                 <Alert severity="info">OCR could not read an amount. Please check the receipt.</Alert>
@@ -243,7 +239,7 @@ export function ReviewPaymentDialog({ payment, onClose }: { payment: Payment | n
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button color="error" disabled={remove.isPending || review.isPending} onClick={deletePayment} sx={{ mr: "auto" }}>
+        <Button color="error" disabled={remove.isPending || review.isPending} onClick={deletePayment} sx={{ mr: { sm: "auto" } }}>
           {remove.isPending ? "Deleting..." : "Delete payment"}
         </Button>
         <Button onClick={onClose}>Close</Button>

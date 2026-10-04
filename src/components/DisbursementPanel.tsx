@@ -166,15 +166,14 @@ export function DisbursementSection({ loan, canEdit }: { loan: Loan; canEdit: bo
           )}
         </Paper>
       ) : (
-        <Alert
-          severity="warning"
-          action={
+        // The button sits under the text (not in the Alert's action slot) so phones keep the text readable.
+        <Alert severity="warning">
+          No proof of send yet. Upload the screenshot after sending the money.
+          <Box sx={{ mt: 1 }}>
             <Button size="small" variant="contained" startIcon={<CloudUpload />} onClick={() => setOpen(true)}>
               Upload
             </Button>
-          }
-        >
-          No proof of send yet. Upload the screenshot after sending the money.
+          </Box>
         </Alert>
       )}
       {canEdit && <ProofOfSendDialog loan={loan} open={open} onClose={() => setOpen(false)} />}
