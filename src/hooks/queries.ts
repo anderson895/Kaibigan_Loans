@@ -1,7 +1,7 @@
 "use client";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Borrower, BorrowerInput } from "@/domain/Borrower";
-import type { Loan } from "@/domain/Loan";
+import type { Loan, PayDay } from "@/domain/Loan";
 import { useAuth } from "@/components/AuthProvider";
 import type { LoanTermsInput } from "@/services/LoanService";
 import type { RecordPaymentInput, SubmitPaymentInput } from "@/services/PaymentService";
@@ -202,6 +202,15 @@ export function useUpdateLoanTerms() {
   const invalidate = useInvalidate();
   return useMutation({
     mutationFn: ({ loan, terms }: { loan: Loan; terms: LoanTermsInput }) => loanService.updateLoanTerms(loan, terms, email),
+    onSuccess: () => invalidate(keys.loans, keys.activity),
+  });
+}
+
+export function useChangePayDay() {
+  const { email } = useAuth();
+  const invalidate = useInvalidate();
+  return useMutation({
+    mutationFn: ({ loan, payDay }: { loan: Loan; payDay: PayDay }) => loanService.changePayDay(loan, payDay, email),
     onSuccess: () => invalidate(keys.loans, keys.activity),
   });
 }

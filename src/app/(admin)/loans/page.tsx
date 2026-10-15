@@ -10,9 +10,10 @@ import {
   Button,
   IconButton,
   InputAdornment,
-  MenuItem,
   Paper,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Tooltip,
   Typography,
@@ -21,7 +22,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { DisbursementSection } from "@/components/DisbursementPanel";
 import { LoanHeader, LoanSummary, PaymentHistory, ScheduleTable } from "@/components/LoanDetailsPanel";
-import { EditLoanDialog, NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
+import { ChangePayDayDialog, EditLoanDialog, NewLoanDialog, ReviewRequestDialog } from "@/components/LoanDialogs";
 import { LoansTable } from "@/components/LoansTable";
 import { RecordPaymentDialog, ReviewPaymentDialog } from "@/components/PaymentDialogs";
 import { ErrorAlert, Loading, PageHeader } from "@/components/ui";
@@ -31,17 +32,20 @@ import type { Payment } from "@/domain/Payment";
 import { useDeleteLoan, useLoanPayments, useLoans } from "@/hooks/queries";
 
 /** "active" = still has a balance (On Going or Overdue). */
-type StatusFilter = LoanStatus | "all" | "active";
+type StatusTab = "active" | "overdue" | "pending" | "paid" | "rejected" | "all";
 
-const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
-  { value: "all", label: "All Status" },
+const TABS: { value: StatusTab; label: string }[] = [
   { value: "active", label: "Active" },
-  { value: "ongoing", label: "On Going" },
   { value: "overdue", label: "Overdue" },
-  { value: "paid", label: "Paid" },
   { value: "pending", label: "Requests" },
+  { value: "paid", label: "Paid" },
   { value: "rejected", label: "Declined" },
+  { value: "all", label: "All" },
 ];
+
+function inTab(tab: StatusTab, status: LoanStatus): boolean {
+  return tab === "all" || status === tab || (tab === "active" && (status === "ongoing" || status === "overdue"));
+}
 
 function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
   const payments = useLoanPayments(loan.id);
@@ -76,19 +80,16 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
               </Button>
             )}
             {loan.isActive && (
-              <Tooltip title={loan.canEditTerms ? "Edit loan" : "Can't edit after a payment was approved"}>
-                <Box component="span" sx={{ flexGrow: 1, display: "flex" }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={<EditOutlined />}
-                    disabled={!loan.canEditTerms}
-                    onClick={() => setEditing(true)}
-                    sx={{ flexGrow: 1, minHeight: { xs: 40, sm: 0 } }}
-                  >
-                    Edit
-                  </Button>
-                </Box>
+              <Tooltip title={loan.canEditTerms ? "Edit loan" : "Has payments, so only the pay day can be changed"}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditOutlined />}
+                  onClick={() => setEditing(true)}
+                  sx={{ flexGrow: 1, minHeight: { xs: 40, sm: 0 } }}
+                >
+                  Edit
+                </Button>
               </Tooltip>
             )}
           </Box>
@@ -127,7 +128,13 @@ function LoanDetails({ loan, onClose }: { loan: Loan; onClose: () => void }) {
 
       <ReviewPaymentDialog payment={reviewing} onClose={() => setReviewing(null)} />
       <ReviewRequestDialog loan={reviewRequest ? loan : null} onClose={() => setReviewRequest(false)} />
-      {editing && <EditLoanDialog loan={loan} onClose={() => setEditing(false)} />}
+      {/* Once a payment is in, the terms are fixed and only the pay day can move. */}
+      {editing &&
+        (loan.canEditTerms ? (
+          <EditLoanDialog loan={loan} onClose={() => setEditing(false)} />
+        ) : (
+          <ChangePayDayDialog loan={loan} onClose={() => setEditing(false)} />
+        ))}
       {recording && <RecordPaymentDialog loan={loan} presetAmount={recording.amount} onClose={() => setRecording(null)} />}
     </Paper>
   );
@@ -138,21 +145,22 @@ function LoansView() {
   const params = useSearchParams();
   const selectedId = params.get("id");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<StatusFilter>((params.get("status") as StatusFilter) ?? "all");
+  // Opens on the loans that still have a balance; links such as ?status=pending open another tab.
+  const [tab, setTab] = useState<StatusTab>(() => TABS.find((t) => t.value === params.get("status"))?.value ?? "active");
   const [newOpen, setNewOpen] = useState(false);
   const { data: loans = [], isPending, error } = useLoans();
 
-  const filtered = useMemo(() => {
+  const rows = useMemo(() => {
     const now = today();
+    return loans.map((loan) => ({ loan, status: loan.statusOn(now) }));
+  }, [loans]);
+  const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const matchesStatus = (s: LoanStatus) =>
-      status === "all" || s === status || (status === "active" && (s === "ongoing" || s === "overdue"));
-    return loans.filter(
-      (l) =>
-        matchesStatus(l.statusOn(now)) &&
-        (!q || l.borrowerName.toLowerCase().includes(q) || l.borrowerEmail.includes(q)),
-    );
-  }, [loans, search, status]);
+    return rows
+      .filter(({ loan, status }) => inTab(tab, status) && (!q || loan.borrowerName.toLowerCase().includes(q) || loan.borrowerEmail.includes(q)))
+      .map(({ loan }) => loan);
+  }, [rows, search, tab]);
+  const countIn = (t: StatusTab) => rows.filter(({ status }) => inTab(t, status)).length;
 
   const selected = loans.find((l) => l.id === selectedId) ?? null;
   const select = (id: string | null) => router.replace(id ? `/loans?id=${id}` : "/loans", { scroll: false });
@@ -170,23 +178,38 @@ function LoansView() {
       />
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", xl: selected ? "1.2fr 1fr" : "1fr" } }}>
         <Paper sx={{ p: 2.5, minWidth: 0, display: { xs: selected ? "none" : "block", xl: "block" } }}>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              sx={{ flexGrow: 1 }}
-              slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search /></InputAdornment> } }}
-            />
-            <TextField select size="small" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} sx={{ minWidth: 160 }}>
-              {STATUS_OPTIONS.map((o) => (
-                <MenuItem key={o.value} value={o.value}>
-                  {o.label}
-                </MenuItem>
-              ))}
-            </TextField>
-          </Stack>
+          <Tabs
+            value={tab}
+            onChange={(_, value: StatusTab) => setTab(value)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{ borderBottom: 1, borderColor: "divider", mb: 2, minHeight: 44, "& .MuiTab-root": { minHeight: 44, textTransform: "none", fontWeight: 600 } }}
+          >
+            {TABS.map((t) => (
+              <Tab
+                key={t.value}
+                value={t.value}
+                label={
+                  <span>
+                    {t.label}
+                    <Box component="span" sx={{ ml: 0.75, px: 0.75, py: 0.125, borderRadius: 99, bgcolor: "action.hover", fontSize: 12 }}>
+                      {countIn(t.value)}
+                    </Box>
+                  </span>
+                }
+              />
+            ))}
+          </Tabs>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Search by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ mb: 2 }}
+            slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search /></InputAdornment> } }}
+          />
           <ErrorAlert error={error} />
           {isPending ? <Loading /> : <LoansTable loans={filtered} selectedId={selectedId} onView={(l) => select(l.id)} />}
         </Paper>

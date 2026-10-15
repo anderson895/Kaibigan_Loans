@@ -1,11 +1,14 @@
-import { writeBatch, type Firestore } from "firebase/firestore";
+import { runTransaction, writeBatch, type Firestore } from "firebase/firestore";
 import { Borrower, type BorrowerInput } from "@/domain/Borrower";
-import { Loan, type NewLoanInput } from "@/domain/Loan";
+import { Loan, payDayName, samePayDay, type NewLoanInput, type PayDay } from "@/domain/Loan";
 import type { ActivityRepository, ActivityType, BorrowerRepository, LoanRepository, PaymentRepository } from "@/data/repositories";
 import { today } from "@/domain/dates";
 import type { UploadService } from "./UploadService";
 
-export type LoanTermsInput = Pick<NewLoanInput, "principal" | "interestType" | "interestValue" | "term" | "termUnit" | "paymentPlan" | "startDate" | "notes">;
+export type LoanTermsInput = Pick<
+  NewLoanInput,
+  "principal" | "interestType" | "interestValue" | "term" | "termUnit" | "paymentPlan" | "payDay" | "startDate" | "notes"
+>;
 
 export class LoanService {
   constructor(
@@ -200,6 +203,34 @@ export class LoanService {
     batch.set(this.loans.docRef(loan.id), this.loans.toData(updated));
     this.logActivity(batch, "loan_updated", `Loan terms updated for ${loan.borrowerName}`, loan.id, loan.borrowerName, updated.totalAmount, actorEmail);
     await batch.commit();
+  }
+
+  /**
+   * Moves the unpaid installments to a new pay day; allowed even after payments. Reads the loan
+   * again in a transaction so a payment approved meanwhile is not lost.
+   */
+  async changePayDay(loan: Loan, payDay: PayDay, actorEmail: string): Promise<void> {
+    await runTransaction(this.db, async (tx) => {
+      const ref = this.loans.docRef(loan.id);
+      const current = this.loans.fromSnapshot(await tx.get(ref));
+      if (!current) throw new Error("Loan not found");
+      const updated = current.withPayDay(payDay, today());
+      const day = payDayName(updated.payDay, updated.termUnit);
+      tx.set(ref, this.loans.toData(updated));
+      tx.set(
+        this.activity.newDocRef(),
+        this.activity.entry({
+          type: "loan_updated",
+          message: samePayDay(current.payDay, updated.payDay)
+            ? `Unpaid installments of ${current.borrowerName} moved to the next pay days`
+            : `Pay day of ${current.borrowerName} changed to ${day ? `every ${day}` : "the loan date"}`,
+          loanId: current.id,
+          borrowerName: current.borrowerName,
+          amount: null,
+          actorEmail,
+        }),
+      );
+    });
   }
 
   /**

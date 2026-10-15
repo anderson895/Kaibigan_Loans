@@ -5,10 +5,10 @@ import EmailOutlined from "@mui/icons-material/EmailOutlined";
 import SmsOutlined from "@mui/icons-material/SmsOutlined";
 import { Alert, Box, Button, Divider, InputAdornment, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
-import { TermFields } from "@/components/LoanForm";
+import { payDayText, TermFields } from "@/components/LoanForm";
 import { Loading, PageHeader } from "@/components/ui";
 import type { TermUnit } from "@/domain/InterestStrategy";
-import type { PaymentPlan } from "@/domain/Loan";
+import type { PayDay, PaymentPlan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
 import { useLenderContact, useMyBorrower } from "@/hooks/queries";
 import { toE164, toMailtoUrl, toSmsUrl } from "@/services/LenderContactService";
@@ -20,6 +20,7 @@ interface RequestDetails {
   plan: PaymentPlan;
   term: number;
   unit: TermUnit;
+  payDay: PayDay;
   payout: string;
   notes: string;
 }
@@ -33,6 +34,7 @@ function buildMessage(d: RequestDetails): string {
     "",
     `Amount: ${formatPeso(d.amount)}`,
     `Payment plan: ${plan}`,
+    ...(d.payDay !== null ? [`Araw ng bayad: ${payDayText(d.payDay, d.unit, true)}`] : []),
     `Ipadala sa: ${d.payout}`,
     d.notes ? `Notes: ${d.notes}` : "",
     "",
@@ -55,6 +57,7 @@ export default function RequestLoanPage() {
   const [plan, setPlan] = useState<PaymentPlan>("lump");
   const [term, setTerm] = useState("1");
   const [unit, setUnit] = useState<TermUnit>("weeks");
+  const [payDay, setPayDay] = useState<PayDay>(null);
   const [payout, setPayout] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
   // "copy" = Copy button pressed; "messenger" = copied and Messenger opened.
@@ -72,6 +75,7 @@ export default function RequestLoanPage() {
     plan,
     term: Number(term) || 1,
     unit,
+    payDay,
     payout: payoutValue.trim(),
     notes: notes.trim(),
   });
@@ -107,11 +111,13 @@ export default function RequestLoanPage() {
             paymentPlan={plan}
             term={term}
             termUnit={unit}
+            payDay={payDay}
             tagalog
             onChange={(c) => {
               if (c.paymentPlan) setPlan(c.paymentPlan);
               if (c.term !== undefined) setTerm(c.term);
               if (c.termUnit) setUnit(c.termUnit);
+              if (c.payDay !== undefined) setPayDay(c.payDay);
             }}
           />
           <TextField

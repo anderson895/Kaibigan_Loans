@@ -11,13 +11,15 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Borrower } from "@/domain/Borrower";
-import type { Loan } from "@/domain/Loan";
+import { today } from "@/domain/dates";
+import { samePayDay, type Loan, type PayDay } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
-import { useBorrowers, useCreateLoan, useReviewRequest, useUpdateLoanTerms } from "@/hooks/queries";
+import { useBorrowers, useChangePayDay, useCreateLoan, useReviewRequest, useUpdateLoanTerms } from "@/hooks/queries";
 import { ProofOfSendFields, type ProofOfSendInput } from "./DisbursementPanel";
-import { emptyLoanForm, LoanForm, previewLoan, toTerms, type LoanFormValues } from "./LoanForm";
+import { ScheduleTable } from "./LoanDetailsPanel";
+import { emptyLoanForm, LoanForm, PayDayField, previewLoan, toTerms, type LoanFormValues } from "./LoanForm";
 import { ErrorAlert } from "./ui";
 
 export function NewLoanDialog({
@@ -106,6 +108,7 @@ function formValuesOf(loan: Loan): LoanFormValues {
     paymentPlan: loan.paymentPlan,
     term: String(loan.term),
     termUnit: loan.termUnit,
+    payDay: loan.payDay,
     startDate: loan.startDate,
     notes: loan.notes,
   };
@@ -143,6 +146,60 @@ export function EditLoanDialog({ loan, onClose }: { loan: Loan; onClose: () => v
   );
 }
 
+/**
+ * For a loan that already has payments, where only the pay day can change: the unpaid installments
+ * move to the new day, while paid ones, the total and the balance stay the same.
+ */
+export function ChangePayDayDialog({ loan, onClose }: { loan: Loan; onClose: () => void }) {
+  const change = useChangePayDay();
+  const [payDay, setPayDay] = useState<PayDay>(loan.payDay);
+  const preview = useMemo(() => {
+    try {
+      return loan.withPayDay(payDay, today());
+    } catch {
+      return null;
+    }
+  }, [loan, payDay]);
+  // Also true for the same pay day when overdue installments would move to the coming pay days.
+  const datesOf = (l: Loan) => l.schedule.map((s) => `${s.dueDate}:${s.amountDue}`).join();
+  const changed = !!preview && (!samePayDay(payDay, loan.payDay) || datesOf(preview) !== datesOf(loan));
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Change Pay Day — {loan.borrowerName}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            This loan already has payments, so only the pay day can be changed. The unpaid installments move to the new
+            day, starting no earlier than today, so they don&apos;t show as overdue. Paid installments, the total and the
+            balance stay the same.
+          </Typography>
+          <PayDayField termUnit={loan.termUnit} payDay={payDay} onChange={setPayDay} />
+          {preview && changed && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
+                New schedule
+              </Typography>
+              <ScheduleTable loan={preview} />
+            </Box>
+          )}
+          <ErrorAlert error={change.error} />
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button
+          variant="contained"
+          disabled={!changed || change.isPending}
+          onClick={() => change.mutate({ loan, payDay }, { onSuccess: onClose })}
+        >
+          {change.isPending ? "Saving..." : "Save"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 export function ReviewRequestDialog({ loan, onClose }: { loan: Loan | null; onClose: () => void }) {
   const review = useReviewRequest();
   const [values, setValues] = useState<LoanFormValues | null>(null);
@@ -155,6 +212,7 @@ export function ReviewRequestDialog({ loan, onClose }: { loan: Loan | null; onCl
           paymentPlan: loan.paymentPlan,
           term: String(loan.term),
           termUnit: loan.termUnit,
+          payDay: loan.payDay,
           notes: loan.notes,
         }
       : emptyLoanForm());
