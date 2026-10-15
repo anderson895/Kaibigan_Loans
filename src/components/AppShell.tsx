@@ -188,9 +188,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NavLinks items={items} onNavigate={() => setMobileOpen(false)} />
       <Box sx={{ flexGrow: 1 }} />
       <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mx: 2, mb: 1 }} />
-      {/* Opens upward so the user card stays under the pointer. */}
+      {/* Same items as the avatar menu in the top bar. Opens upward so the user card stays under the pointer. */}
       <Collapse in={accountOpen}>
         <NavLinks items={accountItems} onNavigate={() => setMobileOpen(false)} />
+        <Box sx={{ px: 1.5, pb: 1 }}>
+          <ListItemButton onClick={logout} sx={{ borderRadius: 2, color: "#fca5a5", "&:hover": { bgcolor: "rgba(248,113,113,0.12)" } }}>
+            <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
+              <Logout />
+            </ListItemIcon>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Logout
+            </Typography>
+          </ListItemButton>
+        </Box>
       </Collapse>
       <Box sx={{ px: 1.5 }}>
         <ListItemButton
@@ -211,16 +221,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             fontSize="small"
             sx={{ color: "#94a3b8", transition: "transform .2s", transform: accountOpen ? "rotate(180deg)" : "none" }}
           />
-        </ListItemButton>
-      </Box>
-      <Box sx={{ px: 1.5, pt: 0.5 }}>
-        <ListItemButton onClick={logout} sx={{ borderRadius: 2, color: "#fca5a5", "&:hover": { bgcolor: "rgba(248,113,113,0.12)" } }}>
-          <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
-            <Logout />
-          </ListItemIcon>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            Logout
-          </Typography>
         </ListItemButton>
       </Box>
     </Box>
@@ -266,14 +266,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <MenuItem disabled>
                 <Typography variant="body2">{user?.email}</Typography>
               </MenuItem>
-              <MenuItem component={Link} href={PROFILE_NAV.href} onClick={() => setMenuAnchor(null)}>
-                <ListItemIcon>
-                  <AccountCircleOutlined fontSize="small" />
-                </ListItemIcon>
-                My Profile
-              </MenuItem>
-              <MenuItem onClick={logout}>
-                <ListItemIcon>
+              {/* Same items as the account toggle in the sidebar. */}
+              {accountItems.map((item) => (
+                <MenuItem key={item.href} component={Link} href={item.href} onClick={() => setMenuAnchor(null)}>
+                  <ListItemIcon sx={{ "& svg": { fontSize: 20 } }}>{item.icon}</ListItemIcon>
+                  {item.label}
+                </MenuItem>
+              ))}
+              <MenuItem onClick={logout} sx={{ color: "error.main" }}>
+                <ListItemIcon sx={{ color: "inherit" }}>
                   <Logout fontSize="small" />
                 </ListItemIcon>
                 Logout
