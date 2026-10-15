@@ -162,14 +162,14 @@ function Hero() {
             component="h1"
             sx={{ fontSize: { xs: 36, sm: 48, md: 54, lg: 58 }, fontWeight: 800, lineHeight: 1.1, letterSpacing: "-0.02em" }}
           >
-            Tiwala. Kaibigan.
-            <Box component="span" sx={{ display: "block", color: "primary.main", whiteSpace: { md: "nowrap" } }}>
-              Mas Madaling Loan.
+            Simpleng listahan
+            <Box component="span" sx={{ display: "block", color: "primary.main" }}>
+              ng utang sa mga kaibigan
             </Box>
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 3, maxWidth: 500, fontSize: 17, lineHeight: 1.7 }}>
-            Ang Kaibigan Loans is a simple and secure platform where you can lend money, make payments, and track your loans with your friends. No more confusion, just trust and transparency.
-
+            Dito na nakalista ang bawat pautang. Makikita ninyong pareho kung magkano ang inutang, ang interest, kung
+            magkano pa ang kulang, at kung kailan ang due.
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mt: 4 }}>
             <Button
@@ -351,7 +351,7 @@ function Footer() {
       <Stack direction="row" spacing={3} sx={{ position: "relative", alignItems: "center", justifyContent: "center", px: 2 }}>
         <Box sx={{ width: { xs: 40, sm: 70 }, height: "1px", bgcolor: "primary.main", opacity: 0.4 }} />
         <Typography sx={{ fontFamily: script.style.fontFamily, color: "primary.dark", fontSize: { xs: 24, md: 30 }, textAlign: "center" }}>
-          Magkakaisa sa bawat pangarap.
+          Malinaw na usapan, buo ang samahan.
         </Typography>
         <Box sx={{ width: { xs: 40, sm: 70 }, height: "1px", bgcolor: "primary.main", opacity: 0.4 }} />
       </Stack>

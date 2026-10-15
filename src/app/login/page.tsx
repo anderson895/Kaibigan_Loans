@@ -19,9 +19,9 @@ type Mode = "login" | "signup" | "forgot";
 const brush = Caveat_Brush({ subsets: ["latin"], weight: "400" });
 
 const PERKS: { icon: ReactNode; title: string; text: string }[] = [
-  { icon: <Bolt />, title: "Mabilis na Proseso", text: "Walang matagal na pila o komplikadong requirements." },
+  { icon: <Bolt />, title: "Laging Updated", text: "Kita agad ang balance pagka-approve ng bayad mo." },
   { icon: <VerifiedUser />, title: "Ligtas at Secure", text: "Ang iyong impormasyon ay protektado namin." },
-  { icon: <Groups />, title: "Para sa mga Kaibigan", text: "Tulong mula sa komunidad, para sa mas magandang bukas." },
+  { icon: <Groups />, title: "Para sa mga Kaibigan", text: "Para sa pautangan ng magkakaibigan, hindi ng kompanya." },
 ];
 
 /** Left marketing panel: headline, perks, coin illustration and the brush-script slogan. */
@@ -32,13 +32,13 @@ function Showcase() {
         <Brand onLight />
       </Box>
       <Typography component="h1" sx={{ fontSize: { md: 38, lg: 44 }, fontWeight: 800, lineHeight: 1.12, maxWidth: 460 }}>
-        Mas Madaling Kumuhang Loan, Mas{" "}
+        Tingnan ang utang mo,{" "}
         <Box component="span" sx={{ color: "primary.main" }}>
-          Maliwanag na Bukas.
+          kahit kailan.
         </Box>
       </Typography>
       <Typography color="text.secondary" sx={{ mt: 2, fontSize: 17, maxWidth: 380, lineHeight: 1.5 }}>
-        Mabilis, ligtas at maaasahang loan services para sa mga Kaibigang tulad mo.
+        Mag-login para makita ang balance, due date at mga bayad mo.
       </Typography>
 
       <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)", alignItems: "center", mt: 4, gap: 2 }}>
