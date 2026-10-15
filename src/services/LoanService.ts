@@ -215,7 +215,7 @@ export class LoanService {
       const current = this.loans.fromSnapshot(await tx.get(ref));
       if (!current) throw new Error("Loan not found");
       const updated = current.withPayDay(payDay, today());
-      const day = payDayName(updated.payDay, updated.termUnit);
+      const day = payDayName(updated.payDay);
       tx.set(ref, this.loans.toData(updated));
       tx.set(
         this.activity.newDocRef(),

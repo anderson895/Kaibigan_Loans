@@ -13,7 +13,7 @@ import {
 import { useMemo } from "react";
 import { formatDate, today } from "@/domain/dates";
 import type { InterestType, TermUnit } from "@/domain/InterestStrategy";
-import { isTwiceAMonth, Loan, payDayName, type PayDay, type PaymentPlan } from "@/domain/Loan";
+import { Loan, payDayName, type PayDay, type PaymentPlan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
 
 export interface LoanFormValues {
@@ -59,12 +59,34 @@ export function toTerms(v: LoanFormValues) {
 const TAGALOG_WEEKDAYS = ["Linggo", "Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes", "Sabado"];
 
 /** "Every Friday" / "Tuwing Biyernes", "Every 10th & 25th" / "Tuwing 10 at 25". Null = counted from the loan date. */
-export function payDayText(payDay: PayDay, unit: TermUnit, tagalog = false): string {
+export function payDayText(payDay: PayDay, tagalog = false): string {
   if (payDay === null) return tagalog ? "Batay sa petsa ng loan" : "Based on loan date";
-  if (!tagalog) return `Every ${payDayName(payDay, unit)}`;
-  if (isTwiceAMonth(payDay)) return `Tuwing ${payDay.map((d) => (d >= 31 ? "katapusan" : d)).join(" at ")}`;
-  if (unit === "weeks") return `Tuwing ${TAGALOG_WEEKDAYS[payDay]}`;
-  return payDay >= 31 ? "Tuwing katapusan ng buwan" : `Tuwing ika-${payDay}`;
+  if (!tagalog) return `Every ${payDayName(payDay)}`;
+  if ("weekday" in payDay) return `Tuwing ${TAGALOG_WEEKDAYS[payDay.weekday]}`;
+  if (payDay.dates.length === 2) return `Tuwing ${payDay.dates.map((d) => (d >= 31 ? "katapusan" : d)).join(" at ")}`;
+  return payDay.dates[0] >= 31 ? "Tuwing katapusan ng buwan" : `Tuwing ika-${payDay.dates[0]}`;
+}
+
+function WeekdayPicker({
+  label,
+  value,
+  onChange,
+  tagalog,
+}: {
+  label: string;
+  value: number;
+  onChange: (weekday: number) => void;
+  tagalog: boolean;
+}) {
+  return (
+    <TextField select fullWidth label={label} value={String(value)} onChange={(e) => onChange(Number(e.target.value))}>
+      {[1, 2, 3, 4, 5, 6, 0].map((weekday) => (
+        <MenuItem key={weekday} value={String(weekday)}>
+          {tagalog ? TAGALOG_WEEKDAYS[weekday] : payDayName({ weekday })}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
 }
 
 const MONTH_DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
@@ -84,7 +106,7 @@ function MonthDayPicker({
   onChange: (day: number) => void;
   tagalog: boolean;
 }) {
-  const name = (day: number) => (tagalog ? (day >= 31 ? "Katapusan" : `ika-${day}`) : payDayName(day, "months")!);
+  const name = (day: number) => (tagalog ? (day >= 31 ? "Katapusan" : `ika-${day}`) : payDayName({ dates: [day] })!);
   return (
     <TextField
       select
@@ -119,72 +141,66 @@ function MonthDayPicker({
   );
 }
 
+type PayOften = "auto" | "week" | "once" | "twice";
+
 /**
- * The day(s) the borrower pays: a weekday for weekly terms; for monthly terms once or twice a month
- * on the dates picked (e.g. every 10th and 25th).
+ * The day(s) the borrower pays, whatever the term unit: every week on a weekday, or once or twice a
+ * month on the dates picked (e.g. every 10th and 25th).
  */
 export function PayDayField({
-  termUnit,
   payDay,
   onChange,
   tagalog = false,
 }: {
-  termUnit: TermUnit;
   payDay: PayDay;
   onChange: (payDay: PayDay) => void;
   tagalog?: boolean;
 }) {
-  const label = tagalog ? "Araw ng bayad" : "Pay day";
-  // Select values are strings; "auto" stands for null (an empty value would leave the label over the text).
-  if (termUnit === "weeks") {
-    return (
+  const often: PayOften = payDay === null ? "auto" : "weekday" in payDay ? "week" : payDay.dates.length === 2 ? "twice" : "once";
+  const dates = payDay !== null && "dates" in payDay ? payDay.dates : [];
+  const changeOften = (next: PayOften) => {
+    // Keep the date(s) already picked where possible; otherwise start from Monday / the 15th / kinsenas at katapusan.
+    if (next === "auto") onChange(null);
+    else if (next === "week") onChange({ weekday: 1 });
+    else if (next === "once") onChange({ dates: [dates[0] ?? 15] });
+    else onChange({ dates: dates.length === 2 ? dates : [15, 31] });
+  };
+  const every = tagalog ? "Tuwing" : "Every";
+  return (
+    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+      {/* Select values are strings; "auto" stands for null (an empty value would leave the label over the text). */}
       <TextField
         select
         fullWidth
-        label={label}
-        value={String(payDay ?? "auto")}
-        onChange={(e) => onChange(e.target.value === "auto" ? null : Number(e.target.value))}
+        label={tagalog ? "Araw ng bayad" : "Pay day"}
+        value={often}
+        onChange={(e) => changeOften(e.target.value as PayOften)}
       >
-        {[null, 1, 2, 3, 4, 5, 6, 0].map((day) => (
-          <MenuItem key={String(day)} value={String(day ?? "auto")}>
-            {payDayText(day, "weeks", tagalog)}
-          </MenuItem>
-        ))}
-      </TextField>
-    );
-  }
-
-  const often = payDay === null ? "auto" : isTwiceAMonth(payDay) ? "twice" : "once";
-  const changeOften = (next: string) => {
-    if (next === "auto") onChange(null);
-    // Keep the date(s) already picked where possible; otherwise start from the 15th / kinsenas at katapusan.
-    else if (next === "once") onChange(isTwiceAMonth(payDay) ? payDay[0] : (payDay ?? 15));
-    else onChange(isTwiceAMonth(payDay) ? payDay : [15, 31]);
-  };
-  return (
-    <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-      <TextField select fullWidth label={label} value={often} onChange={(e) => changeOften(e.target.value)}>
-        <MenuItem value="auto">{payDayText(null, "months", tagalog)}</MenuItem>
+        <MenuItem value="auto">{payDayText(null, tagalog)}</MenuItem>
+        <MenuItem value="week">{tagalog ? "Linggo-linggo" : "Every week"}</MenuItem>
         <MenuItem value="once">{tagalog ? "Isang beses kada buwan" : "Once a month"}</MenuItem>
         <MenuItem value="twice">{tagalog ? "Dalawang beses kada buwan" : "Twice a month"}</MenuItem>
       </TextField>
-      {typeof payDay === "number" && (
-        <MonthDayPicker label={tagalog ? "Tuwing" : "Every"} value={payDay} onChange={onChange} tagalog={tagalog} />
+      {payDay !== null && "weekday" in payDay && (
+        <WeekdayPicker label={every} value={payDay.weekday} onChange={(weekday) => onChange({ weekday })} tagalog={tagalog} />
       )}
-      {isTwiceAMonth(payDay) && (
+      {often === "once" && (
+        <MonthDayPicker label={every} value={dates[0]} onChange={(day) => onChange({ dates: [day] })} tagalog={tagalog} />
+      )}
+      {often === "twice" && (
         <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
           <MonthDayPicker
-            label={tagalog ? "Tuwing" : "Every"}
-            value={payDay[0]}
-            taken={payDay[1]}
-            onChange={(day) => onChange([day, payDay[1]])}
+            label={every}
+            value={dates[0]}
+            taken={dates[1]}
+            onChange={(day) => onChange({ dates: [day, dates[1]] })}
             tagalog={tagalog}
           />
           <MonthDayPicker
             label={tagalog ? "at" : "and"}
-            value={payDay[1]}
-            taken={payDay[0]}
-            onChange={(day) => onChange([payDay[0], day])}
+            value={dates[1]}
+            taken={dates[0]}
+            onChange={(day) => onChange({ dates: [dates[0], day] })}
             tagalog={tagalog}
           />
         </Stack>
@@ -259,8 +275,7 @@ export function TermFields({
             select
             label="Unit"
             value={termUnit}
-            // A weekday means nothing for months (and a date nothing for weeks), so the pay day starts over.
-            onChange={(e) => onChange({ termUnit: e.target.value as TermUnit, payDay: null })}
+            onChange={(e) => onChange({ termUnit: e.target.value as TermUnit })}
             sx={{ minWidth: 110 }}
           >
             <MenuItem value="weeks">Weeks</MenuItem>
@@ -268,7 +283,7 @@ export function TermFields({
           </TextField>
         </Stack>
       </Stack>
-      <PayDayField termUnit={termUnit} payDay={payDay} onChange={(next) => onChange({ payDay: next })} tagalog={tagalog} />
+      <PayDayField payDay={payDay} onChange={(next) => onChange({ payDay: next })} tagalog={tagalog} />
     </Stack>
   );
 }
@@ -284,7 +299,7 @@ export function LoanForm({ values, onChange, showAmountPaid }: Props) {
   const preview = useMemo(() => previewLoan(values), [values]);
   const peso = { input: { startAdornment: <InputAdornment position="start">₱</InputAdornment> } };
   const unitSingular = values.termUnit === "weeks" ? "week" : "month";
-  const day = payDayName(values.payDay, values.termUnit);
+  const day = payDayName(values.payDay);
   const often = day ? `every ${day}` : values.termUnit === "weeks" ? "weekly" : "monthly";
 
   return (

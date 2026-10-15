@@ -34,7 +34,7 @@ function buildMessage(d: RequestDetails): string {
     "",
     `Amount: ${formatPeso(d.amount)}`,
     `Payment plan: ${plan}`,
-    ...(d.payDay !== null ? [`Araw ng bayad: ${payDayText(d.payDay, d.unit, true)}`] : []),
+    ...(d.payDay !== null ? [`Araw ng bayad: ${payDayText(d.payDay, true)}`] : []),
     `Ipadala sa: ${d.payout}`,
     d.notes ? `Notes: ${d.notes}` : "",
     "",

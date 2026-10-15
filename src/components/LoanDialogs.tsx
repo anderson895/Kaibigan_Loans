@@ -174,7 +174,7 @@ export function ChangePayDayDialog({ loan, onClose }: { loan: Loan; onClose: () 
             day, starting no earlier than today, so they don&apos;t show as overdue. Paid installments, the total and the
             balance stay the same.
           </Typography>
-          <PayDayField termUnit={loan.termUnit} payDay={payDay} onChange={setPayDay} />
+          <PayDayField payDay={payDay} onChange={setPayDay} />
           {preview && changed && (
             <Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>

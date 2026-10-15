@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addMonths } from "./dates";
-import { Loan, payDayName, type NewLoanInput } from "./Loan";
+import { Loan, payDayName, type NewLoanInput, type PayDay } from "./Loan";
 
 const base: NewLoanInput = {
   borrowerId: "b1",
@@ -100,26 +100,26 @@ describe("Pay day", () => {
   const weekly: NewLoanInput = { ...base, principal: 2000, interestType: "none", term: 4, termUnit: "weeks", startDate: "2026-10-14" };
 
   it("weekly installments fall on the chosen weekday, starting with the nearest one", () => {
-    const loan = Loan.create({ ...weekly, payDay: 5 });
+    const loan = Loan.create({ ...weekly, payDay: { weekday: 5 } });
     expect(loan.schedule.map((s) => s.dueDate)).toEqual(["2026-10-23", "2026-10-30", "2026-11-06", "2026-11-13"]);
     expect(loan.planLabel()).toBe("4 weeks, weekly installments every Friday");
   });
 
   it("monthly installments fall on the chosen date", () => {
-    const loan = Loan.create({ ...base, principal: 3000, interestType: "none", term: 3, startDate: "2026-10-20", payDay: 15 });
+    const loan = Loan.create({ ...base, principal: 3000, interestType: "none", term: 3, startDate: "2026-10-20", payDay: { dates: [15] } });
     expect(loan.schedule.map((s) => s.dueDate)).toEqual(["2026-11-15", "2026-12-15", "2027-01-15"]);
     expect(loan.planLabel()).toBe("3 months, monthly installments every 15th");
   });
 
   it("dates past a month's end use its last day, then go back to the chosen date", () => {
-    const monthEnd = Loan.create({ ...base, term: 4, startDate: "2026-12-05", payDay: 31 });
+    const monthEnd = Loan.create({ ...base, term: 4, startDate: "2026-12-05", payDay: { dates: [31] } });
     expect(monthEnd.schedule.map((s) => s.dueDate)).toEqual(["2026-12-31", "2027-01-31", "2027-02-28", "2027-03-31"]);
-    const thirtieth = Loan.create({ ...base, term: 3, startDate: "2027-01-10", payDay: 30 });
+    const thirtieth = Loan.create({ ...base, term: 3, startDate: "2027-01-10", payDay: { dates: [30] } });
     expect(thirtieth.schedule.map((s) => s.dueDate)).toEqual(["2027-01-30", "2027-02-28", "2027-03-30"]);
   });
 
   it("kinsenas: twice a month, on the 15th and at month end", () => {
-    const loan = Loan.create({ ...base, principal: 4000, interestType: "none", term: 2, startDate: "2026-10-14", payDay: [15, 31] });
+    const loan = Loan.create({ ...base, principal: 4000, interestType: "none", term: 2, startDate: "2026-10-14", payDay: { dates: [15, 31] } });
     expect(loan.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
       ["2026-10-31", 1000],
       ["2026-11-15", 1000],
@@ -130,34 +130,56 @@ describe("Pay day", () => {
   });
 
   it("twice a month on any two dates, e.g. every 10th & 25th", () => {
-    const loan = Loan.create({ ...base, principal: 4000, interestType: "none", term: 2, startDate: "2026-10-14", payDay: [25, 10] });
-    expect(loan.payDay).toEqual([10, 25]);
+    const loan = Loan.create({ ...base, principal: 4000, interestType: "none", term: 2, startDate: "2026-10-14", payDay: { dates: [25, 10] } });
+    expect(loan.payDay).toEqual({ dates: [10, 25] });
     expect(loan.schedule.map((s) => s.dueDate)).toEqual(["2026-10-25", "2026-11-10", "2026-11-25", "2026-12-10"]);
     expect(loan.planLabel()).toBe("2 months, twice-a-month installments every 10th & 25th");
   });
 
   it("twice a month uses the last day of short months", () => {
-    const loan = Loan.create({ ...base, term: 2, startDate: "2027-01-20", payDay: [15, 30] });
+    const loan = Loan.create({ ...base, term: 2, startDate: "2027-01-20", payDay: { dates: [15, 30] } });
     expect(loan.schedule.map((s) => s.dueDate)).toEqual(["2027-01-30", "2027-02-15", "2027-02-28", "2027-03-15"]);
   });
 
+  it("a weekly loan can be paid every 10th & 25th, until the end of the term", () => {
+    // 8 weeks from Oct 14 ends Dec 9; the pay date nearest to that is Dec 10.
+    const loan = Loan.create({ ...weekly, principal: 4000, term: 8, payDay: { dates: [10, 25] } });
+    expect(loan.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
+      ["2026-10-25", 1000],
+      ["2026-11-10", 1000],
+      ["2026-11-25", 1000],
+      ["2026-12-10", 1000],
+    ]);
+    expect(loan.planLabel()).toBe("8 weeks, twice-a-month installments every 10th & 25th");
+  });
+
+  it("a monthly loan can be paid every week", () => {
+    // 1 month from Thursday, Oct 1: Fridays from Oct 9 until Oct 30, the Friday nearest to Nov 1.
+    const loan = Loan.create({ ...base, principal: 2000, interestType: "none", term: 1, startDate: "2026-10-01", payDay: { weekday: 5 } });
+    expect(loan.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
+      ["2026-10-09", 500],
+      ["2026-10-16", 500],
+      ["2026-10-23", 500],
+      ["2026-10-30", 500],
+    ]);
+    expect(loan.planLabel()).toBe("1 month, weekly installments every Friday");
+  });
+
   it("a one-time payment moves to the nearest pay day", () => {
-    const loan = Loan.create({ ...weekly, paymentPlan: "lump", term: 1, payDay: 5 });
+    const loan = Loan.create({ ...weekly, paymentPlan: "lump", term: 1, payDay: { weekday: 5 } });
     expect(loan.schedule.map((s) => s.dueDate)).toEqual(["2026-10-23"]);
     expect(loan.planLabel()).toBe("One-time payment after 1 week, on the nearest Friday");
   });
 
   it("names dates as ordinals", () => {
-    expect([1, 2, 3, 11, 12, 13, 21, 22, 23, 31].map((d) => payDayName(d, "months"))).toEqual([
+    expect([1, 2, 3, 11, 12, 13, 21, 22, 23, 31].map((d) => payDayName({ dates: [d] }))).toEqual([
       "1st", "2nd", "3rd", "11th", "12th", "13th", "21st", "22nd", "23rd", "month end",
     ]);
   });
 
-  it("rejects a pay day that does not fit the term", () => {
-    expect(() => Loan.create({ ...weekly, payDay: [15, 31] })).toThrow(/pay day/);
-    expect(() => Loan.create({ ...weekly, payDay: 15 })).toThrow(/pay day/);
-    expect(() => Loan.create({ ...base, payDay: 0 })).toThrow(/pay day/);
-    expect(() => Loan.create({ ...base, payDay: [10, 10] })).toThrow(/pay day/);
+  it("rejects a pay day that is not a weekday or one or two dates", () => {
+    const invalid: PayDay[] = [{ weekday: 7 }, { dates: [] }, { dates: [0] }, { dates: [10, 10] }, { dates: [5, 10, 20] }];
+    for (const payDay of invalid) expect(() => Loan.create({ ...base, payDay })).toThrow(/pay day/);
   });
 
   it("loans saved before pay days existed follow the loan date", () => {
@@ -165,9 +187,13 @@ describe("Pay day", () => {
     expect(Loan.fromProps(legacy as never).payDay).toBeNull();
   });
 
-  it("reads the early 'kinsenas' value as the 15th & month end", () => {
-    const props = Loan.create({ ...base, payDay: [15, 31] }).toProps();
-    expect(Loan.fromProps({ ...props, payDay: "kinsenas" } as never).payDay).toEqual([15, 31]);
+  it("reads pay days saved by earlier builds", () => {
+    const props = Loan.create(base).toProps();
+    const read = (payDay: unknown, termUnit: "weeks" | "months") => Loan.fromProps({ ...props, termUnit, payDay } as never).payDay;
+    expect(read("kinsenas", "months")).toEqual({ dates: [15, 31] });
+    expect(read(5, "weeks")).toEqual({ weekday: 5 });
+    expect(read(15, "months")).toEqual({ dates: [15] });
+    expect(read([10, 25], "months")).toEqual({ dates: [10, 25] });
   });
 });
 
@@ -176,7 +202,7 @@ describe("Changing the pay day after payments", () => {
   const weekly = Loan.create({ ...base, principal: 2000, interestValue: 400, term: 4, termUnit: "weeks", startDate: "2026-10-01" });
 
   it("moves the unpaid installments and keeps the paid ones", () => {
-    const moved = weekly.applyPayment(600, "2026-10-10").withPayDay(6, "2026-10-10");
+    const moved = weekly.applyPayment(600, "2026-10-10").withPayDay({ weekday: 6 }, "2026-10-10");
     expect(moved.schedule.map((s) => [s.dueDate, s.amountDue, s.status, s.paidDate])).toEqual([
       ["2026-10-08", 600, "paid", "2026-10-10"],
       ["2026-10-17", 600, "pending", null],
@@ -188,7 +214,7 @@ describe("Changing the pay day after payments", () => {
   });
 
   it("keeps a partly paid installment partly paid", () => {
-    const moved = weekly.applyPayment(900, "2026-10-10").withPayDay(6, "2026-10-10");
+    const moved = weekly.applyPayment(900, "2026-10-10").withPayDay({ weekday: 6 }, "2026-10-10");
     expect(moved.schedule[1]).toMatchObject({ dueDate: "2026-10-17", status: "partial" });
     expect(moved.remainingFor(1)).toBe(300);
   });
@@ -197,20 +223,35 @@ describe("Changing the pay day after payments", () => {
     // On Friday, Oct 16 the Oct 15 installment is overdue. Mondays: the nearest is Oct 12, already past.
     const late = weekly.applyPayment(600, "2026-10-10");
     expect(late.statusOn("2026-10-16")).toBe("overdue");
-    const moved = late.withPayDay(1, "2026-10-16");
+    const moved = late.withPayDay({ weekday: 1 }, "2026-10-16");
     expect(moved.schedule.slice(1).map((s) => s.dueDate)).toEqual(["2026-10-19", "2026-10-26", "2026-11-02"]);
     expect(moved.statusOn("2026-10-16")).toBe("ongoing");
   });
 
   it("keeping the same weekday moves overdue installments to the coming ones", () => {
-    const moved = weekly.applyPayment(600, "2026-10-10").withPayDay(4, "2026-10-16");
+    const moved = weekly.applyPayment(600, "2026-10-10").withPayDay({ weekday: 4 }, "2026-10-16");
     expect(moved.schedule.slice(1).map((s) => s.dueDate)).toEqual(["2026-10-22", "2026-10-29", "2026-11-05"]);
+  });
+
+  it("spreads the unpaid balance over the new pay days when a weekly loan moves to every 10th & 25th", () => {
+    // ₱4,000 over 8 weeks from Thursday, Oct 1: ₱500 every Thursday until Nov 26. The first two are paid.
+    const loan = Loan.create({ ...base, principal: 4000, interestType: "none", term: 8, termUnit: "weeks", startDate: "2026-10-01" });
+    const moved = loan.applyPayment(1000, "2026-10-15").withPayDay({ dates: [10, 25] }, "2026-10-16");
+    expect(moved.schedule.map((s) => [s.dueDate, s.amountDue, s.status])).toEqual([
+      ["2026-10-08", 500, "paid"],
+      ["2026-10-15", 500, "paid"],
+      ["2026-10-25", 1000, "pending"],
+      ["2026-11-10", 1000, "pending"],
+      ["2026-11-25", 1000, "pending"],
+    ]);
+    expect(moved.balance).toBe(3000);
+    expect(moved.planLabel()).toBe("8 weeks, twice-a-month installments every 10th & 25th");
   });
 
   it("splits the unpaid months in two when switching to twice a month, and merges them back", () => {
     // ₱3,000 over 3 months from Oct 1: ₱1,000 on Nov 1, Dec 1 and Jan 1.
     const monthly = Loan.create({ ...base, principal: 3000, interestType: "none", term: 3, startDate: "2026-10-01" });
-    const twice = monthly.applyPayment(1000, "2026-11-01").withPayDay([15, 31], "2026-11-01");
+    const twice = monthly.applyPayment(1000, "2026-11-01").withPayDay({ dates: [15, 31] }, "2026-11-01");
     expect(twice.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
       ["2026-11-01", 1000],
       ["2026-11-15", 500],
@@ -218,7 +259,7 @@ describe("Changing the pay day after payments", () => {
       ["2026-12-15", 500],
       ["2026-12-31", 500],
     ]);
-    const once = twice.withPayDay(30, "2026-11-01");
+    const once = twice.withPayDay({ dates: [30] }, "2026-11-01");
     expect(once.schedule.map((s) => [s.dueDate, s.amountDue])).toEqual([
       ["2026-11-01", 1000],
       ["2026-11-30", 1000],
@@ -228,15 +269,18 @@ describe("Changing the pay day after payments", () => {
   });
 
   it("can go back to counting from the loan date", () => {
-    const back = weekly.applyPayment(600, "2026-10-10").withPayDay(6, "2026-10-10").withPayDay(null, "2026-10-10");
+    const back = weekly
+      .applyPayment(600, "2026-10-10")
+      .withPayDay({ weekday: 6 }, "2026-10-10")
+      .withPayDay(null, "2026-10-10");
     expect(back.schedule.map((s) => s.dueDate)).toEqual(["2026-10-08", "2026-10-15", "2026-10-22", "2026-10-29"]);
     expect(back.payDay).toBeNull();
   });
 
-  it("only works on active loans with a fitting pay day", () => {
-    expect(() => weekly.applyPayment(2400, "2026-10-10").withPayDay(6, "2026-10-10")).toThrow(/active/);
-    expect(() => Loan.create({ ...base, asRequest: true }).withPayDay(15, "2026-10-10")).toThrow(/active/);
-    expect(() => weekly.withPayDay(15, "2026-10-10")).toThrow(/pay day/);
+  it("only works on active loans with a valid pay day", () => {
+    expect(() => weekly.applyPayment(2400, "2026-10-10").withPayDay({ weekday: 6 }, "2026-10-10")).toThrow(/active/);
+    expect(() => Loan.create({ ...base, asRequest: true }).withPayDay({ dates: [15] }, "2026-10-10")).toThrow(/active/);
+    expect(() => weekly.withPayDay({ weekday: 9 }, "2026-10-10")).toThrow(/pay day/);
   });
 });
 

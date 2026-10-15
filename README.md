@@ -282,7 +282,7 @@ tests/firestore.rules.test.ts
 | `admins/{email}` | `email, addedAt` |
 | `meta/setup` | `owner, at` (marker na may admin na) |
 | `borrowers/{id}` | `name, email, phone, payoutDetails, createdAt` |
-| `loans/{id}` | `borrowerId, borrowerName, borrowerEmail, principal, interestType, interestValue, term, termUnit (`months`\|`weeks`), paymentPlan, payDay (`null` \| 0–6 = Linggo–Sabado \| 1–31 \| `[petsa, petsa]` hal. `[10, 25]`; 31 = katapusan), interestAmount, totalAmount, amountPaid, balance, startDate, dueDate, status, schedule[], notes, payoutDetails, createdAt` |
+| `loans/{id}` | `borrowerId, borrowerName, borrowerEmail, principal, interestType, interestValue, term, termUnit (`months`\|`weeks`), paymentPlan, payDay (`null` \| `{ weekday: 0–6 }` Linggo–Sabado \| `{ dates: [1–31] }` o `{ dates: [10, 25] }`; 31 = katapusan), interestAmount, totalAmount, amountPaid, balance, startDate, dueDate, status, schedule[], notes, payoutDetails, createdAt` |
 | `payments/{id}` | `loanId, borrowerId, borrowerName, borrowerEmail, amount, referenceNo, paidOn, receiptUrl, receiptPublicId, ocr{amount, referenceNo, text}, status, rejectReason, submittedAt, reviewedAt` |
 | `activity/{id}` | `type, message, loanId, borrowerName, amount, actorEmail, createdAt` (ito rin ang **audit log**: sign-in, loans, payments, borrowers, profile, admins at settings) |
 
@@ -303,7 +303,13 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
 - *Hulugan:* `total ÷ term` kada buwan o kada linggo, simula isang period pagkatapos ng loan date. Ang huling hulog ang sumasalo sa sobra o kulang dahil sa rounding (hal. ₱1,000/3 = 333.33, 333.33, 333.34).
 - *Isang bagsak:* isang due date lang, `term` buwan o linggo mula sa loan date.
 - Kapag lampas na sa katapusan ng buwan ang due date, ginagamit ang huling araw (Jan 31 + 1 buwan = Feb 28/29).
-- **Araw ng bayad (Pay day):** opsyonal. Kapag weekly, pumili ng araw ng linggo (hal. tuwing Biyernes). Kapag monthly, **isang beses** kada buwan (ika-1 hanggang ika-30, o katapusan) o **dalawang beses** sa dalawang petsang pipiliin (hal. 10 at 25, o 15 at katapusan). Kapag dalawang beses, doble ang dami ng hulog: `term × 2`.
+- **Araw ng bayad (Pay day):** opsyonal, at hindi nakatali sa term unit. Ang mga pagpipilian:
+  - **Linggo-linggo** sa isang araw (hal. tuwing Biyernes).
+  - **Isang beses kada buwan** (ika-1 hanggang ika-30, o katapusan).
+  - **Dalawang beses kada buwan** sa dalawang petsang pipiliin (hal. 10 at 25, o 15 at katapusan).
+  - Ang term (weeks/months) ang nagsasabi kung gaano katagal ang loan at kung paano binibilang ang % interest.
+  - Kapag tugma ang pay day sa term, pareho pa rin ang dami ng hulog: weekly sa weeks → `term`; isang beses kada buwan sa months → `term`; dalawang beses kada buwan sa months → `term × 2`.
+  - Kapag hindi tugma, hal. 8-week loan na tuwing 10 at 25, o 3-month loan na linggo-linggo, bawat araw ng bayad ay may hulog hanggang sa araw ng bayad na pinakamalapit sa katapusan ng term.
   - Ang unang bayad ay ang araw ng bayad na **pinakamalapit** sa normal na unang due date. Kapag pareho ang layo, ang mas huli ang kinukuha para mas mahaba ang palugit. Pagkatapos noon, bawat araw ng bayad na ang hulog.
   - Halimbawa: loan noong Miyerkules, Oct 14, 4 na linggo, tuwing Biyernes → Oct 23, Oct 30, Nov 6, Nov 13.
   - Kapag isang bagsak, inililipat ang due date sa pinakamalapit na araw ng bayad.
@@ -311,7 +317,8 @@ Ang mga petsa ay naka-store bilang `YYYY-MM-DD` string para walang timezone shif
 - **Pagpalit ng araw ng bayad kahit may bayad na:** sa Loan Details, pindutin ang **Edit**. Kapag may approved na bayad na, pay day na lang ang mababago (Change Pay Day).
   - Ang mga hindi pa bayad na hulog ay ililipat sa bagong araw. Hindi sila ilalagay sa petsang lumipas na, kaya hindi sila lalabas na overdue.
   - Ang bayad na, ang total at ang balance ay hindi nagbabago.
-  - Kapag lumipat mula isang beses papuntang dalawang beses kada buwan, hinahati sa dalawa ang mga natitirang hulog (o pinagsasama kapag pabalik).
+  - Kapag pareho ang dalas (hal. Huwebes → Sabado), parehong dami at halaga ng hulog, inilipat lang ng araw.
+  - Kapag nagbago ang dalas (hal. linggo-linggo → tuwing 10 at 25), hinahati nang pantay ang natitirang balance sa mga bagong araw ng bayad hanggang sa dating huling due date.
   - Pwede ring piliin ang parehong araw: ililipat lang ang mga overdue na hulog sa mga susunod na araw ng bayad.
 
 **Pagbabayad:** Ang approved na bayad ay ina-apply sa pinakalumang hulog muna. Kapag kulang, `Partial` ang status ng hulog na iyon. Kapag sobra, dadaloy ito sa susunod na hulog. Hindi bababa sa ₱0 ang balance.

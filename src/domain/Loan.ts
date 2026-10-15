@@ -7,11 +7,12 @@ export type LoanStatus = "pending" | "ongoing" | "overdue" | "paid" | "rejected"
 export type ScheduleStatus = "pending" | "partial" | "paid";
 
 /**
- * The day(s) payments fall on. `null` = counted from the loan date (every 7 days / same date every month).
- * Weekly terms: 0–6 = Sunday–Saturday. Monthly terms: a date 1–31, or two dates for twice a month,
- * e.g. [10, 25] or [15, 31]. 31 = end of the month; shorter months use their last day.
+ * The day(s) payments fall on, whatever the term unit (a weekly loan may be paid every 10th & 25th).
+ * `null` = counted from the loan date, every week or month as the term is counted.
+ * `weekday`: every week, 0 = Sunday … 6 = Saturday.
+ * `dates`: every month on one or two dates, e.g. [10, 25]; 31 = end of the month (shorter months use their last day).
  */
-export type PayDay = number | [number, number] | null;
+export type PayDay = { weekday: number } | { dates: number[] } | null;
 
 export interface ScheduleItem {
   dueDate: IsoDate;
@@ -87,36 +88,53 @@ function ordinal(n: number): string {
 const dateName = (day: number) => (day >= 31 ? "month end" : ordinal(day));
 
 /** "Friday", "15th", "month end", "10th & 25th"; null when payments follow the loan date. */
-export function payDayName(payDay: PayDay, unit: TermUnit, joiner = " & "): string | null {
+export function payDayName(payDay: PayDay, joiner = " & "): string | null {
   if (payDay === null) return null;
-  if (Array.isArray(payDay)) return payDay.map(dateName).join(joiner);
-  return unit === "weeks" ? WEEKDAYS[payDay] : dateName(payDay);
+  return "weekday" in payDay ? WEEKDAYS[payDay.weekday] : payDay.dates.map(dateName).join(joiner);
 }
 
-/** Two pay dates a month (e.g. 10th & 25th), which doubles the number of installments. */
-export function isTwiceAMonth(payDay: PayDay): payDay is [number, number] {
-  return Array.isArray(payDay);
+/** How often payments come: every week, every month, or every half month (two dates a month). */
+type PayEvery = "week" | "month" | "half-month";
+
+function payEvery(payDay: PayDay, unit: TermUnit): PayEvery {
+  if (payDay === null) return unit === "weeks" ? "week" : "month";
+  if ("weekday" in payDay) return "week";
+  return payDay.dates.length === 2 ? "half-month" : "month";
 }
 
-/** Twice-a-month dates are kept in order, so [25, 10] and [10, 25] are the same pay day. */
+function onePeriodAfter(date: IsoDate, every: PayEvery): IsoDate {
+  return every === "week" ? addDays(date, 7) : every === "half-month" ? addDays(date, 15) : addMonths(date, 1);
+}
+
+/** Dates are kept in order, so [25, 10] and [10, 25] are the same pay day. */
 function normalizePayDay(payDay: PayDay): PayDay {
-  return isTwiceAMonth(payDay) ? [Math.min(...payDay), Math.max(...payDay)] : payDay;
+  return payDay !== null && "dates" in payDay ? { dates: [...payDay.dates].sort((a, b) => a - b) } : payDay;
 }
 
 export function samePayDay(a: PayDay, b: PayDay): boolean {
-  return String(normalizePayDay(a)) === String(normalizePayDay(b));
+  return JSON.stringify(normalizePayDay(a)) === JSON.stringify(normalizePayDay(b));
 }
 
-function checkPayDay(payDay: PayDay, unit: TermUnit): void {
+function checkPayDay(payDay: PayDay): void {
   if (payDay === null) return;
-  const isDate = (day: number) => Number.isInteger(day) && day >= 1 && day <= 31;
   const fits =
-    unit === "weeks"
-      ? typeof payDay === "number" && Number.isInteger(payDay) && payDay >= 0 && payDay <= 6
-      : isTwiceAMonth(payDay)
-        ? payDay.length === 2 && payDay.every(isDate) && payDay[0] !== payDay[1]
-        : isDate(payDay);
-  if (!fits) throw new Error("Pick a pay day that fits the term: a weekday for weeks, one or two dates for months.");
+    "weekday" in payDay
+      ? Number.isInteger(payDay.weekday) && payDay.weekday >= 0 && payDay.weekday <= 6
+      : (payDay.dates.length === 1 || payDay.dates.length === 2) &&
+        payDay.dates.every((d) => Number.isInteger(d) && d >= 1 && d <= 31) &&
+        new Set(payDay.dates).size === payDay.dates.length;
+  if (!fits) throw new Error("Pick a valid pay day: a weekday, or one or two dates of the month.");
+}
+
+/**
+ * Reads pay days saved by earlier builds too: a bare number (a weekday on weekly loans, a date on
+ * monthly ones), two dates as a plain array, or "kinsenas" (15th & month end).
+ */
+function readPayDay(saved: unknown, unit: TermUnit): PayDay {
+  if (saved === "kinsenas") return { dates: [15, 31] };
+  if (typeof saved === "number") return unit === "weeks" ? { weekday: saved } : { dates: [saved] };
+  if (Array.isArray(saved)) return { dates: saved };
+  return (saved as PayDay) ?? null;
 }
 
 /** The dates a pay day falls on, as steps backward and forward from any date. */
@@ -146,9 +164,8 @@ function monthlyCalendar(days: number[]): PayCalendar {
   };
 }
 
-function payCalendar(payDay: number | [number, number], unit: TermUnit): PayCalendar {
-  if (isTwiceAMonth(payDay)) return monthlyCalendar(payDay);
-  return unit === "weeks" ? weeklyCalendar(payDay) : monthlyCalendar([payDay]);
+function payCalendar(payDay: NonNullable<PayDay>): PayCalendar {
+  return "weekday" in payDay ? weeklyCalendar(payDay.weekday) : monthlyCalendar(payDay.dates);
 }
 
 /** The pay date closest to `date`; a tie goes to the later one, so the borrower gets the extra days. */
@@ -171,6 +188,13 @@ function payDatesFrom(calendar: PayCalendar, first: IsoDate, count: number): Iso
   return dates;
 }
 
+/** Every pay date from `first` through `end` (at least `first`). */
+function payDatesThrough(calendar: PayCalendar, first: IsoDate, end: IsoDate): IsoDate[] {
+  const dates = [first];
+  for (let next = calendar.after(first); next <= end; next = calendar.after(next)) dates.push(next);
+  return dates;
+}
+
 /** Splits `total` into `count` even parts; the last one absorbs rounding. */
 function splitEvenly(total: number, count: number): number[] {
   const each = roundMoney(total / count);
@@ -187,8 +211,7 @@ export class Loan {
       ...rest,
       term: rest.term ?? termMonths ?? 1,
       termUnit: rest.termUnit ?? "months",
-      // An early build saved "15th & month end" as "kinsenas".
-      payDay: (rest.payDay as unknown) === "kinsenas" ? [15, 31] : (rest.payDay ?? null),
+      payDay: readPayDay(rest.payDay, rest.termUnit ?? "months"),
       disbursement: rest.disbursement ?? null,
       schedule: rest.schedule.map((s) => ({ ...s })),
     });
@@ -199,7 +222,7 @@ export class Loan {
     const term = Math.max(1, Math.floor(input.term || 1));
     const termUnit = input.termUnit ?? "months";
     const payDay = normalizePayDay(input.payDay ?? null);
-    checkPayDay(payDay, termUnit);
+    checkPayDay(payDay);
     const interestAmount = createInterestStrategy(input.interestType, input.interestValue || 0).compute(
       input.principal,
       term,
@@ -257,18 +280,23 @@ export class Loan {
 
   /**
    * Without a pay day, payments are due every week/month counted from the loan date. With one, the
-   * first payment moves to the pay day nearest that date, then falls on every pay day after it
-   * (twice a month = twice as many installments).
+   * first payment is the pay day nearest one pay period after the loan date, then every pay day after
+   * it. Paying at the term's own pace gives a fixed count (twice a month = twice as many); a different
+   * pace (e.g. weekly on a 3-month loan) runs until the pay day nearest the end of the term.
    */
   private static dueDates(plan: PaymentPlan, term: number, startDate: IsoDate, unit: TermUnit, payDay: PayDay): IsoDate[] {
     const after = (periods: number) => (unit === "weeks" ? addDays(startDate, periods * 7) : addMonths(startDate, periods));
     if (payDay === null) {
       return plan === "lump" ? [after(term)] : Array.from({ length: term }, (_, i) => after(i + 1));
     }
-    const calendar = payCalendar(payDay, unit);
-    if (plan === "lump") return [nearestPayDate(calendar, after(term))];
-    const twice = isTwiceAMonth(payDay);
-    return payDatesFrom(calendar, nearestPayDate(calendar, twice ? addDays(startDate, 15) : after(1)), twice ? term * 2 : term);
+    const calendar = payCalendar(payDay);
+    const end = nearestPayDate(calendar, after(term));
+    if (plan === "lump") return [end];
+    const every = payEvery(payDay, unit);
+    const first = nearestPayDate(calendar, onePeriodAfter(startDate, every));
+    if (unit === "weeks" && every === "week") return payDatesFrom(calendar, first, term);
+    if (unit === "months" && every !== "week") return payDatesFrom(calendar, first, every === "half-month" ? term * 2 : term);
+    return payDatesThrough(calendar, first, end);
   }
 
   get id() { return this.props.id; }
@@ -313,11 +341,11 @@ export class Loan {
     const { paymentPlan, termUnit, payDay } = this.props;
     if (paymentPlan === "lump") {
       const plan = `One-time payment after ${this.termLabel()}`;
-      const day = payDayName(payDay, termUnit, " or ");
+      const day = payDayName(payDay, " or ");
       return day ? `${plan}, on the nearest ${day}` : plan;
     }
-    const day = payDayName(payDay, termUnit);
-    const often = isTwiceAMonth(payDay) ? "twice-a-month" : termUnit === "weeks" ? "weekly" : "monthly";
+    const day = payDayName(payDay);
+    const often = { week: "weekly", month: "monthly", "half-month": "twice-a-month" }[payEvery(payDay, termUnit)];
     return `${this.termLabel()}, ${often} installments${day ? ` every ${day}` : ""}`;
   }
 
@@ -416,36 +444,40 @@ export class Loan {
 
   /**
    * Moves the unpaid installments to a new pay day, e.g. when the borrower now gets paid on other days.
-   * Allowed even after payments: paid installments, the total and the balance stay the same. Switching
-   * between once and twice a month doubles or halves the unpaid installments. Nothing lands before
-   * `today`, so an overdue installment moves to the next pay day instead of staying overdue.
+   * Allowed even after payments: paid installments, the total and the balance stay the same.
+   * - Same pace (e.g. Thursdays to Saturdays): each unpaid installment moves to the nearest new pay day.
+   * - New pace (e.g. weekly to every 10th & 25th): the unpaid balance is spread evenly over the new pay
+   *   days until the old last due date.
+   * Nothing lands before `today`, so an overdue installment moves to the next pay day instead of staying overdue.
    */
   withPayDay(payDay: PayDay, today: IsoDate): Loan {
     if (!this.isActive) throw new Error("Only active loans can be rescheduled.");
     const { termUnit, startDate, schedule, paymentPlan, amountPaid } = this.props;
     const next = normalizePayDay(payDay);
-    checkPayDay(next, termUnit);
+    checkPayDay(next);
 
     const settled = schedule.filter((s) => s.status === "paid");
     const open = schedule.slice(settled.length);
-    const installments = paymentPlan === "installment";
-    const split = installments && !isTwiceAMonth(this.props.payDay) && isTwiceAMonth(next);
-    const merged = installments && isTwiceAMonth(this.props.payDay) && !isTwiceAMonth(next);
-    const count = split ? open.length * 2 : merged ? Math.ceil(open.length / 2) : open.length;
-    const amounts =
-      count === open.length
-        ? open.map((s) => s.amountDue)
-        : splitEvenly(roundMoney(open.reduce((sum, s) => sum + s.amountDue, 0)), count);
-
-    // Start near the next unpaid due date: half a month earlier when installments are split in two,
-    // at the second one when two are merged, so the money falls due about when it did before.
-    const anchor = split ? addDays(open[0].dueDate, -15) : merged ? (open[1] ?? open[0]).dueDate : open[0].dueDate;
-    const calendar = payCalendar(next ?? this.loanDatePayDay(), termUnit);
-    const nearest = nearestPayDate(calendar, anchor);
-    const notPast = nearest >= today ? nearest : payDateFrom(calendar, today);
     const floor = last(settled)?.dueDate ?? startDate;
-    const dates = payDatesFrom(calendar, notPast > floor ? notPast : calendar.after(floor), count);
+    const every = payEvery(next, termUnit);
+    const calendar = payCalendar(next ?? this.loanDatePayDay());
+    let dates =
+      paymentPlan === "lump" || every === payEvery(this.props.payDay, termUnit)
+        ? payDatesFrom(calendar, nearestPayDate(calendar, open[0].dueDate), open.length)
+        : payDatesThrough(
+            calendar,
+            nearestPayDate(calendar, onePeriodAfter(floor, every)),
+            nearestPayDate(calendar, last(open)!.dueDate),
+          );
+    // Not before today (it would be overdue right away), and after the last paid installment.
+    let first = dates[0] < today ? payDateFrom(calendar, today) : dates[0];
+    if (first <= floor) first = calendar.after(floor);
+    if (first !== dates[0]) dates = payDatesFrom(calendar, first, dates.length);
 
+    const amounts =
+      dates.length === open.length
+        ? open.map((s) => s.amountDue)
+        : splitEvenly(roundMoney(open.reduce((sum, s) => sum + s.amountDue, 0)), dates.length);
     const rescheduled: ScheduleItem[] = [
       ...settled,
       ...dates.map((dueDate, i) => ({ dueDate, amountDue: amounts[i], status: "pending" as ScheduleStatus, paidDate: null })),
@@ -457,9 +489,9 @@ export class Loan {
   }
 
   /** The day payments counted from the loan date fall on: its weekday, or its date in the month. */
-  private loanDatePayDay(): number {
+  private loanDatePayDay(): NonNullable<PayDay> {
     const { termUnit, startDate } = this.props;
-    return termUnit === "weeks" ? weekdayOf(startDate) : Number(startDate.slice(8));
+    return termUnit === "weeks" ? { weekday: weekdayOf(startDate) } : { dates: [Number(startDate.slice(8))] };
   }
 
   withDisbursement(disbursement: Disbursement): Loan {
