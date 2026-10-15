@@ -11,6 +11,7 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { useAuth } from "@/components/AuthProvider";
 import { LoansTable } from "@/components/LoansTable";
 import { ErrorAlert, Loading, PageHeader, StatCard } from "@/components/ui";
+import type { Loan } from "@/domain/Loan";
 import { formatPeso } from "@/domain/money";
 import { useActivity, useLoans, usePayments } from "@/hooks/queries";
 
@@ -25,6 +26,9 @@ export default function DashboardPage() {
   const all = loans.data ?? [];
   const booked = all.filter((l) => !l.isRequest && l.storedStatus !== "rejected");
   const active = booked.filter((l) => l.isActive);
+  // Who still owes, soonest due first (overdue loans end up on top).
+  const nextDueDate = (l: Loan) => l.nextDue()?.dueDate ?? l.dueDate;
+  const owing = [...active].sort((a, b) => nextDueDate(a).localeCompare(nextDueDate(b)));
   const requests = all.filter((l) => l.isRequest);
   const pending = (payments.data ?? []).filter((p) => p.isPending);
   const firstName = user?.displayName?.split(" ")[0] ?? "Admin";
@@ -77,12 +81,17 @@ export default function DashboardPage() {
       <Box sx={{ display: "grid", gap: 2, gridTemplateColumns: { xs: "1fr", lg: "2fr 1fr" } }}>
         <Paper sx={{ p: 2.5, minWidth: 0 }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-            <Typography variant="h6">Recent Loans</Typography>
-            <Button component={Link} href="/loans" endIcon={<ArrowForward />} size="small">
+            <Typography variant="h6">Active Loans</Typography>
+            <Button component={Link} href="/loans?status=active" endIcon={<ArrowForward />} size="small">
               View all
             </Button>
           </Stack>
-          <LoansTable loans={booked.slice(0, 6)} compact onView={(l) => router.push(`/loans?id=${l.id}`)} />
+          <LoansTable
+            loans={owing.slice(0, 6)}
+            compact
+            emptyText="No active loans. Everyone is paid up."
+            onView={(l) => router.push(`/loans?id=${l.id}`)}
+          />
         </Paper>
         <Paper sx={{ p: 2.5, minWidth: 0 }}>
           <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}>

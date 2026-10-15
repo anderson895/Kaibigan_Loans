@@ -34,7 +34,7 @@ Kapalit ito ng mano-manong paglilista sa Word (Name, Credit, Interest, Balance, 
 ### Admin
 | Page | Ano ang laman |
 |---|---|
-| **Dashboard** | Total Borrowers, Total Loaned, Interest Earned, Pending Payments, Recent Loans, Recent Activity |
+| **Dashboard** | Total Borrowers, Total Loaned, Interest Earned, Pending Payments, Active Loans (mga may balance pa, pinakamalapit na due ang nauuna), Recent Activity |
 | **Loans** | Search at status filter, **+ New Loan** (may live preview ng total at schedule), Loan Details (summary, schedule, payments), review ng loan request |
 | **Payments** | Pending, Approved at Rejected tabs, resibo, OCR amount, mismatch warning, **Approve & deduct** o **Reject** (may dahilan) |
 | **Borrowers** | Lahat ng nag-register (kusang nadadagdag pagka-verify ng email), phone, saan ipapadala ang pera, active loans, outstanding, at **New Loan** button |

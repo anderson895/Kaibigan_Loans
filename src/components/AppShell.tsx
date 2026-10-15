@@ -3,6 +3,7 @@ import AccountCircleOutlined from "@mui/icons-material/AccountCircleOutlined";
 import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
 import AddCircleOutline from "@mui/icons-material/AddCircleOutlineOutlined";
 import DashboardOutlined from "@mui/icons-material/DashboardOutlined";
+import ExpandLess from "@mui/icons-material/ExpandLess";
 import GroupOutlined from "@mui/icons-material/GroupOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import Logout from "@mui/icons-material/Logout";
@@ -16,6 +17,7 @@ import {
   Avatar,
   Badge,
   Box,
+  Collapse,
   Divider,
   Drawer,
   GlobalStyles,
@@ -31,7 +33,7 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePayments } from "@/hooks/queries";
 import { SIDEBAR_BG, SIDEBAR_WIDTH } from "@/lib/theme";
 import { authService } from "@/services/container";
@@ -159,10 +161,18 @@ export function UserAvatar({ size = 34 }: { size?: number }) {
 export function AppShell({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const isAdmin = role === "admin";
   const items = isAdmin ? ADMIN_NAV : BORROWER_NAV;
+  const accountItems = isAdmin ? [SETTINGS_NAV, PROFILE_NAV] : [PROFILE_NAV];
+  const onAccountPage = accountItems.some((i) => pathname === i.href || pathname.startsWith(`${i.href}/`));
+  // Settings / My Profile sit behind the user card; open it whenever one of them is the current page.
+  const [accountOpen, setAccountOpen] = useState(onAccountPage);
+  useEffect(() => {
+    if (onAccountPage) setAccountOpen(true);
+  }, [onAccountPage]);
   const logout = async () => {
     setMenuAnchor(null);
     setMobileOpen(false);
@@ -178,19 +188,32 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NavLinks items={items} onNavigate={() => setMobileOpen(false)} />
       <Box sx={{ flexGrow: 1 }} />
       <Divider sx={{ borderColor: "rgba(255,255,255,0.08)", mx: 2, mb: 1 }} />
-      <NavLinks items={isAdmin ? [SETTINGS_NAV, PROFILE_NAV] : [PROFILE_NAV]} onNavigate={() => setMobileOpen(false)} />
-      <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", px: 2.5, pt: 1.5 }}>
-        <UserAvatar size={32} />
-        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="body2" noWrap sx={{ color: "#fff", fontWeight: 600 }}>
-            {user?.displayName ?? "Account"}
-          </Typography>
-          <Typography variant="caption" noWrap component="div" sx={{ color: "#94a3b8" }}>
-            {user?.email}
-          </Typography>
-        </Box>
-      </Stack>
-      <Box sx={{ px: 1.5, pt: 1.5 }}>
+      {/* Opens upward so the user card stays under the pointer. */}
+      <Collapse in={accountOpen}>
+        <NavLinks items={accountItems} onNavigate={() => setMobileOpen(false)} />
+      </Collapse>
+      <Box sx={{ px: 1.5 }}>
+        <ListItemButton
+          onClick={() => setAccountOpen((open) => !open)}
+          aria-expanded={accountOpen}
+          sx={{ borderRadius: 2, px: 1.5, gap: 1.25, "&:hover": { bgcolor: "rgba(255,255,255,0.06)" } }}
+        >
+          <UserAvatar size={32} />
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography variant="body2" noWrap sx={{ color: "#fff", fontWeight: 600 }}>
+              {user?.displayName ?? "Account"}
+            </Typography>
+            <Typography variant="caption" noWrap component="div" sx={{ color: "#94a3b8" }}>
+              {user?.email}
+            </Typography>
+          </Box>
+          <ExpandLess
+            fontSize="small"
+            sx={{ color: "#94a3b8", transition: "transform .2s", transform: accountOpen ? "rotate(180deg)" : "none" }}
+          />
+        </ListItemButton>
+      </Box>
+      <Box sx={{ px: 1.5, pt: 0.5 }}>
         <ListItemButton onClick={logout} sx={{ borderRadius: 2, color: "#fca5a5", "&:hover": { bgcolor: "rgba(248,113,113,0.12)" } }}>
           <ListItemIcon sx={{ color: "inherit", minWidth: 38 }}>
             <Logout />

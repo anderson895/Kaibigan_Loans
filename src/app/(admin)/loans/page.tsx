@@ -30,8 +30,12 @@ import type { Loan, LoanStatus } from "@/domain/Loan";
 import type { Payment } from "@/domain/Payment";
 import { useDeleteLoan, useLoanPayments, useLoans } from "@/hooks/queries";
 
-const STATUS_OPTIONS: { value: LoanStatus | "all"; label: string }[] = [
+/** "active" = still has a balance (On Going or Overdue). */
+type StatusFilter = LoanStatus | "all" | "active";
+
+const STATUS_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: "all", label: "All Status" },
+  { value: "active", label: "Active" },
   { value: "ongoing", label: "On Going" },
   { value: "overdue", label: "Overdue" },
   { value: "paid", label: "Paid" },
@@ -134,16 +138,18 @@ function LoansView() {
   const params = useSearchParams();
   const selectedId = params.get("id");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<LoanStatus | "all">((params.get("status") as LoanStatus) ?? "all");
+  const [status, setStatus] = useState<StatusFilter>((params.get("status") as StatusFilter) ?? "all");
   const [newOpen, setNewOpen] = useState(false);
   const { data: loans = [], isPending, error } = useLoans();
 
   const filtered = useMemo(() => {
     const now = today();
     const q = search.trim().toLowerCase();
+    const matchesStatus = (s: LoanStatus) =>
+      status === "all" || s === status || (status === "active" && (s === "ongoing" || s === "overdue"));
     return loans.filter(
       (l) =>
-        (status === "all" || l.statusOn(now) === status) &&
+        matchesStatus(l.statusOn(now)) &&
         (!q || l.borrowerName.toLowerCase().includes(q) || l.borrowerEmail.includes(q)),
     );
   }, [loans, search, status]);
@@ -173,7 +179,7 @@ function LoansView() {
               sx={{ flexGrow: 1 }}
               slotProps={{ input: { startAdornment: <InputAdornment position="start"><Search /></InputAdornment> } }}
             />
-            <TextField select size="small" value={status} onChange={(e) => setStatus(e.target.value as LoanStatus | "all")} sx={{ minWidth: 160 }}>
+            <TextField select size="small" value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)} sx={{ minWidth: 160 }}>
               {STATUS_OPTIONS.map((o) => (
                 <MenuItem key={o.value} value={o.value}>
                   {o.label}

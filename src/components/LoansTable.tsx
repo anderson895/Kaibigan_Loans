@@ -10,10 +10,11 @@ interface Props {
   selectedId?: string | null;
   onView?: (loan: Loan) => void;
   compact?: boolean;
+  emptyText?: string;
 }
 
-export function LoansTable({ loans, selectedId, onView, compact }: Props) {
-  if (!loans.length) return <EmptyState>No loans found.</EmptyState>;
+export function LoansTable({ loans, selectedId, onView, compact, emptyText = "No loans found." }: Props) {
+  if (!loans.length) return <EmptyState>{emptyText}</EmptyState>;
   const now = today();
   return (
     <TableContainer sx={cardsOnPhone}>
